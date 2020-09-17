@@ -16,4 +16,4 @@ Use the navigation panel on the left to navigate this workshop.
 {% include toc.html %}
 </ol>
 
-[All workshops](/)
+[All workshops](https://uoe-bio3092.github.io/BIO3092/)
