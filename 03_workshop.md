@@ -1,6 +1,6 @@
 ---
 layout: page
-title: "R Notebook"
+title: Workshop
 order: 3
 ---
 
