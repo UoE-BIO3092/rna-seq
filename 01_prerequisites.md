@@ -21,7 +21,7 @@ To successfully create an instance you will need to select the following options
 Please name your instance something that you will remember - including your name is a good idea. Then follow the instructions using the following options:
 
 * Boot source: _Instance Snapshot_
-* Name:
+* Name: BIO3092-2020
 * Flavour: _u1.xxlarge_
 
 Once the instance has started remember to take note of the IP address (use Edit-Copy).
@@ -46,4 +46,4 @@ To successfully use your own machine you will need to:
 
 ## Required software
 
-## Downloading workshop data 
+## Downloading workshop data
