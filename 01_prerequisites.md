@@ -38,7 +38,7 @@ Once you have successfully logged on, its time to begin the workshop!
 
 # Using your own machine
 
-It will also be possible to use your own machine to complete the workshop.
+It is strongly recommended that you use the Virtual Machine approach to complete this workshop described above. However, it will also be possible to use your own machine.
 
 To successfully use your own machine you will need to:
 * Install all required software
@@ -46,4 +46,12 @@ To successfully use your own machine you will need to:
 
 ## Required software
 
+We will run the whole workshop in [R](https://www.r-project.org/). I recommend using an Integrated Development Environment (IDE) such as [RStudio](https://rstudio.com/), which has a lot of useful features such as package installation, script editor and panes for visualisation of the environment and images.
+
+To complete the workshop you will need to install several packages:
+* [Rsubread](https://bioconductor.org/packages/release/bioc/html/Rsubread.html) for alignment and counting
+
+
 ## Downloading workshop data
+
+A substantial amount of raw data is also required (~5-10GB) for this workshop. The easiest way to download this

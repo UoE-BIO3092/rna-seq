@@ -1,0 +1,170 @@
+---
+title: Aligning and quantifying expression
+output: html_notebook
+---
+
+## Aims
+
+Text about what we will do in this section
+
+## Setup
+
+Text - where is the working directory, how they should be working (Rstudio, command line)
+
+```{r setup}
+require("knitr")
+opts_knit$set(root.dir = "~/Data/BIO3092/")
+```
+
+## Software 
+
+For the alignment and counting stage of our analysis we will be using an R package, [Rsubread](https://bioconductor.org/packages/release/bioc/html/Rsubread.html). Rsubread is a package for alignment, quantification and analysis of second and third generation sequencing data. It includes functionality for read mapping, read counting, SNP calling, structural variant detection and gene fusion discovery. The package can be applied to all major sequencing techologies and to both short and long sequence reads.
+
+There are alternatives for aligning reads to reference genomes including [HISAT](https://www.nature.com/articles/nmeth.3317) and [STAR](https://academic.oup.com/bioinformatics/article/29/1/15/272537). However, these are developed for a Linux environment and are usually run on a server so that they can cope with large datasets and parallel tasks. In our case we will be using Rsubread as it is the only aligner that can be run in R and we  are working with comparatively small fungal data. 
+
+### Building a reference index
+
+Before we can begin mapping our sequencing reads to the reference genome, the first step of our analysis is to build an index of our *C. gattii* genome. Genome sequences, often broken down into chromosomes, scaffolds and contigs, are stored in fasta files. These files have the format:
+
+```
+>chr1
+ATGCGTCTGCATCGTGCATCGACCAT
+ATGCGTCTGCATCGTGCATCGAC...
+```
+
+These files are large, and depending on the genome, can be a few GB in size. Mapping many individual sequencing reads to a large fasta file of sequences would take a long time. Building a reference genome indexes the large genome to improve the performance of an aligner and make the alignment step much quicker.
+
+To build an index we need a fasta file that stores the *C. gattii* genome. You will find some reference sequences for the pathogen in `C.gattii_ref/`. The reference sequence is stored in file `Cryptococcus_gattii.fa`. Let's start by loading the Rsubread package and buildiing our reference.
+
+```{r}
+library(Rsubread)
+buildindex(basename="C.gattii_ref/Cryptococcus_gattii", reference="C.gattii_ref/Cryptococcus_gattii.fa")
+```
+
+The `buildindex` command will take a minute or two to run and print a range of progress information to the screen. It will also generate a few new files in the `C.gattii_ref/` folder that you can list with the `dir` command. Try:
+
+```{r, eval=False}
+dir(path='C.gattii_ref/')
+```
+
+you should see a few new files have been created that index our *C. gattii* genome. We will be using these files when we align our sequencing reads to the reference.
+
+### Aligning reads to our reference
+
+Now that we have built an index we are ready to align our reads. Here we will be using Rsubread's `align` command. You can see all the parameters that we could provide with `?align`, but in our analysis we will be using the default parameters, which will work fine for the purpose of this workshop. We will start by reading in a sample table that describes our experimental samples and identifies the files that store the associated reads. We can read the file in with:
+
+```{r}
+samples = read.table("fastq/samples.txt", sep='\t', header=TRUE)
+head(samples)
+```
+
+We use `read.table` to read the `samples.txt` file and the `head` command to show the first few lines of what is stored in the resulting `DataFrame` object. We have 5 columns that store the information on strain and experimental conditions such as condition and timepoint etc. The final two columns tell us which files store the reads for the associated sample. The powerful aspect of this approach is that we can easily subset the samples and analyse multiple samples at a time. For example to select only those samples at 0hr (*in vitro* controls) we can use:
+
+```{r}
+samples[samples$Timepoint == '0hr',]
+```
+
+which selects all rows where the timepoint is equal to 0hr. An excellent function of the `align` command is that it allows us to specify multiple read files and will run the alignment for all of those files sequentially. Let's align all the 0hr timepoint files:
+
+```{r, eval=FALSE}
+timepoint = samples[samples$Timepoint == '0hr',]
+align(index="C.gattii_ref/Cryptococcus_gattii", readfile1=paste('fastq/', timepoint$Read1, sep=''), readfile2=paste('fastq/', timepoint$Read1, sep=''), nthread=4)
+```
+
+The command should take a few minutes to run and print lots of running information to the screen. While the command is running lets break down the command. The first line subsets the `samples` DataFrame to produce a new `timepoint` DataFrame that contains only the 0hr samples. We next use the `align` command specifying our `index`, which we created earlier. Then we specify the read files with `readfile1` and `readfile2`, passing in a character vector of all the read1 and read2 files contained within the `timepoint` DataFrame (i.e. all the 0hr control files). Note, here we use the `paste` command to specify that  the `fastq/` directory should be placed before the read file name so that subread can actually find the files in the correct directory. Finally, we specify the `nthread` parameter to allow subread to use multiple threads that will speed up the time it takes to do the alignment.
+
+The output of running the `align` command will have printed lots of information about the alignment statistics. The same information is also available in the `.summary` files that were produced. To find out how many reads have mapped we could trawl through these outputs and files but luckily Rsubread provides the handy command `propmapped`, which will calculate the proportion of mapped reads for us:
+
+```{r}
+bam.files = list.files(path = "fastq/", pattern = ".BAM$", full.names = TRUE)
+props <- propmapped(files=bam.files)
+props
+```
+
+This chunk of code first uses `list.files` to get a list of all files that end with `.BAM` in the `fastq/` directory. It next uses `propmapped` to calculate the proportion of reads that map and store it in a `props` DataFrame. From the output you will see that the proportion of mapped reads ranges from ~25% to >80%. This is a large range and suggests there may be something in teh data we haven't accounted for. Looking at the Methods section in the [original work](https://msphere.asm.org/content/3/5/e00445-18) that generated these data we can see that the authors found contaminants in their data and took extra steps to remove reads that did not belong to the fungi. This might explain our low mapping stats. In a research project we would spend some time tracking down these issues and trying to improve these mapping stats but for the purposes of this workshop and associated coursework working with these files as they are is perfectly acceptable.
+
+> ## Exercise
+> 
+> 1. Modify the above commands to align all the 1hr samples to the *C. gattii* reference genome
+> 2. Recalculate the proportion of reads mapping to the genome including both 0hr and 1hr samples
+>   * What do you notice about the 0hr and 1hr samples? Can you think of a reason you may see these differences?
+>
+
+```{r, echo=FALSE, eval=FALSE}
+timepoint = samples[samples$Timepoint == '1hr',]
+align(index="C.gattii_ref/Cryptococcus_gattii", readfile1=paste('fastq/', timepoint$Read1, sep=''), readfile2=paste('fastq/', timepoint$Read1, sep=''), nthread=4)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+bam.files = list.files(path = "./fastq/", pattern = ".BAM$", full.names = TRUE)
+props <- propmapped(files=bam.files)
+props
+```
+
+### Counting reads in features
+
+So far we have mapped reads to positions in our  pathogen genome. Our alignment has produced a series of BAM files, where each file contains the read alignments for each sample. In the BAM file, there is a chromosomal location for every read that mapped uniquely. Next, we need to count the number of reads that actually map to the locations of known genes or exons. The mapped reads can be counted across genes or exons using the `featureCounts` function. For this analysis we will use the files in the `alignments` directory.
+
+```{r}
+bam.files = list.files(path = "./alignments/", pattern = ".BAM$", full.names = TRUE)
+fc = featureCounts(bam.files, annot.ex="C.gattii_ref/Cryptococcus_gattii.gff3", isGTFAnnotationFile=TRUE, GTF.featureType = "gene", GTF.attrType = "ID", isPairedEnd=TRUE, nthreads=4)
+```
+
+The above code chunk first gets a list of all the BAM files stored in the `alignments` directory much like we did earlier in the workshop. The second part uses the `featureCounts` command to count reads in features passing the list of BAM files and a annotation source, `C.gattii_ref/Cryptococcus_gattii.gff3` as parameters. Additional parameters let `featureCounts` know that the genome annotation (gene chromsome, start and stop information) is in GTF/GFF format (`isGTFAnnotationFile`), that we want to use the `gene` features (rather than `exon`, which is the default) and that the gene ID is stored in the `ID` attribute. Finally, we tell featurecounts that the data is paired end and to use multiple threads to speed up the analysis.
+
+The results of the counting have been stored in a list object called `fc`. We can see whats stored in the slots of `fc` by using the `names` command:
+
+```{r}
+names(fc)
+```
+
+which tells us that we have access to: 
+* `counts` - a matrix that stores the counts for each gene 
+* `annotation` - the annotation used to generate the counts, which includes gene ID, chromosome, start and stop 
+* `targets` - the files used in the analysis
+* `stat` - the counting stats, which tells us how many reads were assigned to genes
+
+For the remainder of our analysis we're interested in the `counts` matrix. We can see a preview of what this looks like using:
+
+```{r}
+head(fc$counts)
+```
+
+In this matrix each row is a gene (e.g. `gene:CNBG_0001`) and each column is one of our samples, represented by the ID of the BAM files used to generate the counts. The values in the matrix represent the number of reads that were assigned to each gene. We can see how many genes and samples we have in our analysis by using the `dim` command:
+
+```{r}
+dim(fc$counts)
+```
+
+which tells us that we have 6,472 rows (or genes) and 20 columns (or samples - 5 strains * 2 timepoints * 2 replicates).
+
+> ## Exercise
+> 
+> 1. Repeat the counting but this time count reads mapping to exons 
+>  * TIP: save this to a different variable such as `fc.multi`
+>  * TIP: use exon for the feature and Name for the attribute
+>  * How many exons do you have in the analysis?
+>
+
+```{r, echo=FALSE, eval=FALSE}
+bam.files = list.files(path = "./alignments/", pattern = ".BAM$", full.names = TRUE)
+fc.multi = featureCounts(bam.files, annot.ex="C.gattii_ref/Cryptococcus_gattii.gff3", isGTFAnnotationFile=TRUE, GTF.featureType = "exon", GTF.attrType = "Name", isPairedEnd=TRUE, nthreads=4)
+dim(fc.multi$counts)
+```
+
+## Summary 
+
+We have now:
+
+* Built a genome index using `buildIndex`
+* Read in a sample table giving our experimental detail
+* Aligned fastq files to a reference using `align`
+* Quantified gene expression using `featureCounts`
+
+In the next stage of our workshop we will carry out some differential expression analysis. To go back to the index page click [here](https://uoe-bio3092.github.io/rna-seq/03_workshop.html).
+
+# R Package versions info
+
+```{r}
+sessionInfo()
+```
