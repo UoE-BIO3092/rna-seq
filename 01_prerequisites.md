@@ -31,8 +31,8 @@ Once the instance has started remember to take note of the IP address (use Edit-
 A video tutorial to connect to your virtual machine using Terminal (mac) or MobaXterm (windows) is [here](https://youtu.be/qPPBjTSppvE)
 
 The log in details are:
-* User name:
-* Password:
+* User name: ubuntu
+* Password: bio3092
 
 Once you have successfully logged on, its time to begin the workshop!
 
@@ -50,7 +50,10 @@ We will run the whole workshop in [R](https://www.r-project.org/). I recommend u
 
 To complete the workshop you will need to install several packages:
 * [Rsubread](https://bioconductor.org/packages/release/bioc/html/Rsubread.html) for alignment and counting
+* [edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html) for differential gene expression analysis
+* [GOfuncR](https://www.bioconductor.org/packages/release/bioc/html/GOfuncR.html) for Gene Ontology enrichment
 
+Follow the instructions on the above pages to install the packages.
 
 ## Downloading workshop data
 

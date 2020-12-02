@@ -1,0 +1,223 @@
+---
+title: Identifying differential gene expression
+output: html_notebook
+---
+
+## Aims
+
+Measuring gene expression on a genome-wide scale has become common practice in research projects. With the advent of next generation sequencing technologies, it is quicker and cheaper than ever to study gene expression in often complex systems. Now studies often involve multiple samples, timepoints and conditions, meaning that scientists need to understand how these data are stored and analysed.
+
+There are many steps involved in analysing an RNA-Seq experiment. We have already aligned sequencing reads to a reference genome and counted reads that map to features or genes resulting in a table of counts.  Now we will perform some statistical analysis on these counts to identify differentially expressed genes.
+
+## Setup
+
+Text - where is the working directory, how they should be working (Rstudio, command line)
+
+```{r setup}
+require("knitr")
+opts_knit$set(root.dir = "~/Data/BIO3092/")
+```
+
+## Software 
+
+To identify differentaillly expressed genes we will be using the R package, [edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html). EdgeR allows differential expression analysis of RNA-seq expression profiles with biological replication. The package implements a range of statistical methodology based on the negative binomial distributions, including empirical Bayes estimation, exact tests, generalized linear models and quasi-likelihood tests [Robinson *et al.* 2010](https://academic.oup.com/bioinformatics/article/26/1/139/182458).
+
+As we saw with our alignment steps there are alternatives to edgeR to identify differential expressed genes. The other most commonly used software is [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html), which provides similar analysis options and performance to that of edgeR. 
+
+### Reading and formatting of data
+
+To start our analysis we need to first read and format our data. We will require two pieces of information i) a list of samples that contains only the samples we will use in our analysis and, importantly, is in the same order as our counts data. To do this we can use the commands:
+
+```{r}
+samples = read.table("fastq/samples.txt", sep='\t', header=TRUE)
+samples = samples[samples$Timepoint == '0hr' | samples$Timepoint == '1hr',]
+samples = samples[seq(dim(samples)[1],1),]
+head(samples)
+```
+
+The above code chunk first reads in the samples table, selects only the samples at 0hr OR 1hr and finally reverses the order of the table so that it matches the counts table. ii) We also our table of counts that was produced with the `featureCounts` program:
+
+```{r}
+counts = read.table("DE/counts.txt", header=TRUE, sep='\t')
+head(counts)
+```
+
+Our counts table shows the number of reads that map to each gene in the *C. gattii* genome for each sample. However, our samples names, that can be cross-referenced against the sample table, have text (`_1.fastq.gz.subread.BAM`) appended that makes reading the counts table cumbersome. Let's remove it:
+
+```{r}
+colnames(counts) <- substr(colnames(counts), 1, 11)
+head(counts)
+```
+
+Here, we use the substring (`substr`) command on the `colnames` of the counts table to just keep characters 1 - 11 (i.e the SRR ID). Using `head` to look at the first few lines of the counts table shows us that our column names are much more readable and can be easily cross-referenced with the samples table.
+
+###  Filtering genes with low expression
+
+Genes with very low counts across all libraries provide little evidence for differential expression and they interfere with some of the statistical approximations that are used by edgeR. They also add to the multiple testing burden when estimating false discovery rates, reducing power to detect differentially expressed genes. These genes should be filtered out.
+
+There are a few ways to filter out lowly expressed genes. When there are biological replicates in each group, in this case we have a sample size of 2 in each group, we should filter on a minimum counts per million (cpm) threshold in at least 2 samples. Lets try retaining genes if they are expressed at a counts-per-million (CPM) above 10 in at least two samples. One advantage of this method is that by converting to CPMs we are normalising for the different sequencing depths for each sample. We can use the `cpm` function from the edgeR to generate the CPM values and then filter:
+
+```{r}
+library(edgeR)
+counts.cpm = cpm(counts)
+thresh = counts.cpm > 10
+
+keep <- rowSums(thresh) >= 2
+counts.keep <- counts[keep,]
+dim(counts.keep)
+```
+
+The above code chunk converts our counts to CPM and stores the result in `counts.cpm`. We then create a logical table that stores TRUE values if the count for a gene and sample is above our CPM cutoff of 10.  If the count is any smaller, it is considered to be very low, indicating that the associated gene is not expressed, or we can not accurately detect it in that sample. Next, we use `rowSums` to count the number of samples that show a CPM greater than our cutoff, a requirement for expression in two or more libraries is used as each group contains two replicates. This ensures that a gene will be retained if it is only expressed in one group. Finally, we subset our counts table to create `counts.keep` that now stores our filtered counts data. Using `dim` we can see that we now have 5,897 genes in our dataset. 
+
+### Create a DGEList object
+
+Next we’ll create a DGEList object, an object used by edgeR to store count data. It has a number of slots for storing various parameters about the data.
+
+```{r}
+dge <- DGEList(counts.keep)
+dge
+```
+
+You can see that the DGEList object has the slots `$counts` that stores our counts table and `$samples` that stores sample information including the group,  library size (lib.size  - number of reads in the library) and normalisation factors (norm.factors).
+
+One important next step is to inspect our data to see whether any samples may be outliers and not suited to the analysis. One way to achieve this is to use a Multidimensional Scaling (MDS) plot, is a visualisation of a principle components analysis, which determines the greatest sources of variation in the data. If the experiment is well controlled and has worked well,  we hope to see  that the greatest sources of variation in the data are the treatments or groups. For example, with our dataset we would hope to see that the 'in vitro' controls appear different from our 'BMDM' samples. We can test this by:
+
+```{r}
+levels(factor(samples$Condition))
+```
+
+First we use `levels` and `factor` to see how many conditions we have and the order that they appear in the data.
+
+```{r}
+col.cell <- c("purple","orange")[factor(samples$Condition)]
+plotMDS(dge,col=col.cell)
+legend("topleft",fill=c("purple","orange"),legend=levels(factor(samples$Condition)))
+```
+
+We use the levels information to assign colours to the BMDM (purple) and *in vitro* (orange) data. Then we call `plotMDS` to visualise the variation in the data. We can see clearly that the BMDM and *in vitro* data form two distinct clusters. We can also see that there is more variation in the BMDM data as this cluster is more dispersed. We may see this pattern because of issues with data quality (we know that we have few mapping and assigned reads in these data) or because of differences between the *C. gattii* strains in our experiment. It is a good result that we can distinguish between our conditions.
+
+### Normalisation
+
+EdgeR uses a trimmed mean of M-values normalization method (TMM) to eliminate composition biases between samples. This generates a set of normalization factors (we saw this column in our DGEList object earlier), where the product of these factors and the library sizes defines the effective library size. The `calcNormFactors` function in edgeR calculates the normalization factors between libraries. TMM normalisation (and most scaling normalisation methods) scale relative to one sample to make all samples comparable. We can perform the normalisation with:
+
+```{r}
+dge <- calcNormFactors(dge)
+dge$samples
+```
+
+We can see now that the `norm.factors` column has now been populated, where before all values were 1. The normalization factors multiply to unity across all libraries. A normalization factor below one indicates that the library size will be scaled down, as there is more suppression (i.e., composition bias) in that library relative to the other libraries. This is also equivalent to scaling the counts upwards in that sample. Conversely, a factor above one scales up the library size and is equivalent to downscaling the counts.
+
+
+Next, we estimate common dispersion averaged over all genes with `estimateCommonDisp` and then we estimate gene-wise dispersion estimates (`estimateTagwiseDisp`), allowing a possible trend with average count size (`estimateGLMTrendedDisp`).
+
+```{r}
+dge = estimateCommonDisp(dge)
+dge = estimateGLMTrendedDisp(dge)
+dge = estimateTagwiseDisp(dge)
+```
+
+This completes our normalisation and now we can move onto calculating differentially expressed genes.
+
+### Differential expression - between timepoints
+
+We start by creating a design matrix that characterises the experimental setup in a way that allows us to make the desired comparisons. 
+
+```{r}
+design = model.matrix(~0+samples$Strain+samples$Timepoint+samples$Replicate)
+design
+```
+
+Looking at the design matrix we can see our samples are now represented as rows (we have 20 samples) and that columns represent groups and the values tell us which sample belongs to which group. As we have used strain (`samples$Strain`) in our design formula we have created a paired experimental design where edgeR knows which samples belong to the same strain allowing us to account for variation between strains. If you find the sixth column, `samples$Timepoint1hr`, all samples that are in the 1hr group are denoted with 1 and all samples from the 0hr group are denoted with 0. This allows us to easily compare between different groupings. An excellent explanation of different approaches to creating design matrices and what they mean can be found in the [edgeR user manual](https://www.bioconductor.org/packages/release/bioc/vignettes/edgeR/inst/doc/edgeRUsersGuide.pdf).
+
+One thing to note is that the column names in the design matrix come directly from the reference to the samples table i.e. `samples$Timepoint1hr`. However, if we try to use these names in any further processing we will find that R throws an error as it won't like the `$` sign in a name. Luckily, R provides a simple function `make.names` that will fix this for us. We can replace the column names in our design matrix using: 
+
+```{r}
+colnames(design) = make.names(colnames(design))
+design
+```
+
+You will see that the column names on the design matrix have changed and the `$`'s have been replaced with `.`.
+
+Now we can fit a general linear model to the data that can be used to identify differentially expressed genes.
+
+```{r}
+fit <- glmFit(dge, design)
+head(coef(fit))
+```
+
+The method `coef(fit)` shows all the coefficients of the linear model and allows us to see what kind of comparisons, both within and between groups, can be made. We can see that the sixth coefficient is the one that represents samples at either 0hr or 1hr.
+
+Next, we can now conduct a likelihood ratio test to identify differentially expressed genes between 0hr and 1hr timepoints. As we are looking for differences within the timepoint group it is easy to identify differentially expressed genes by specifying the coefficient that represents timepoint:
+
+```{r}
+lrt.timepoint = glmLRT(fit, coef=6)
+```
+
+To display the top differentially expressed genes we can use the `topTags` function:
+
+```{r}
+topTags(lrt.timepoint)
+```
+
+The `topTags` function shows us the top differentially expressed genes between the 0hr and 1hr timepoints (see the Coefficient at the top of the table). Here the `logFC` shows us the fold change between timepoints (with negative values indicating down-regulation in the 1hr timepoint), `logCPM` shows the average expression of the gene over all samples, `LR` is the likelihood ratio, `PValue` is the raw p-value from the likelihhod test and `FDR` is the false discovery rate corrected p-value (the one we actually use to judge significance) corrected by the method of [Benjamini and Hochberg, 1995](https://www.jstor.org/stable/2346101?seq=1).
+
+As a quick check of our results, we can plot a `barplot` of the CPM normalised counts for one of our significantly differentailly expressed genes. We choose gene `CNB3_005342` with a `logFC` of -8.82:
+
+```{r}
+barplot(counts.cpm['CNB3_005342', ], xaxt='n', ann=FALSE)
+```
+
+We can see that in samples 1-5 and 11-15 (the 0hr timepoint samples) there are high CPM values indicating high expression and very little expression in samples 6-10 and 16-20 (the 1hr timepoint samples). This confirms our result of significant down-regulation for `CNB3_005342` at 1hr post infection.
+
+### Adjusting for false discovery rate
+
+When we use the `topTags` function we get to see the most significant results and the function automatically applies some correction for the false discovery rate. But if we look at the raw results stored in our `lrt.timepoint` object:
+
+```{r}
+head(lrt.timepoint$table)
+```
+
+we can see that the adjusted p-value is not stored. If we want to output our results with the false discovery rate correction we will need to apply this ourselves. To do this we can use the `p.adjust` method:
+
+```{r}
+lrt.timepoint$table$PAdj = p.adjust(lrt.timepoint$table$PValue, method="BH")
+head(lrt.timepoint$table)
+```
+
+In the above command we create a new column `PAdj` in the `lrt.timepoint` table that will store our adjusted p-values. Then we fill this new column with the results of `p.adjust`, which takes a vector of p-values (`lrt.timepoint$table$PValue`) and a string representing the correction method. Here we use `BH` for the Benjamini and Hochberg method of false discovery rate correction. Finally, if we use `head` to see the updated results table we can see that our new column is populated with the adjusted p-values.
+
+### Saving our work
+
+Before we finish this section of the workshop, lets save the important data that we will use for the next part of our workshop. For this we will need our significantly differentially expressed genes. We can output these data by selecting from  our data frames and using `write.table`:
+
+```{r}
+write.table(lrt.timepoint$table, file='DE/all_genes_1hr.txt', quote=FALSE, sep="\t")
+write.table(lrt.timepoint$table[lrt.timepoint$table$logFC < 0 & lrt.timepoint$table$PAdj < 0.01,], file='DE/down-reg_genes_1hr.txt', quote=FALSE, sep="\t")
+write.table(lrt.timepoint$table[lrt.timepoint$table$logFC > 0 & lrt.timepoint$table$PAdj < 0.01,], file='DE/up-reg_genes_1hr.txt', quote=FALSE, sep="\t")
+```
+
+Here we write 3 files: 
+
+* `all_genes_1hr.txt` will contain the whole differential expression analysis results found in `lrt.timepoint$table`, which will contain both significant and insignificant results.
+* `down-reg_genes_1hr.txt` will contain only the down-regulated genes (`logFC < 0`) that are significant with an adjusted p-value < 0.01.
+* `up-reg_genes_1hr.txt` will contain only the up-regulated genes (`logFC > 0`) that are significant with an adjusted p-value < 0.01.
+
+We can now read in these files for the next section of our workshop.
+
+## Summary 
+
+We have now:
+
+* Normalised count data
+* Filtered lowly expressed genes
+* Used sample information to create a design matrix
+* Identified differentially expressed between strains
+* Adjusted p-values for a false discovery rate
+
+In the next stage of our workshop we will perform some [differential expression of strains](diff_exp_anova.nb.html) to identify differentailly expressed genes between our 5 *C. gattii* strains rather than between timepoints during infection. To go back to the index page click [here](https://uoe-bio3092.github.io/rna-seq/03_workshop.html).
+
+# R Package versions info
+
+```{r}
+sessionInfo()
+```

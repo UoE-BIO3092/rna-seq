@@ -34,11 +34,11 @@ ATGCGTCTGCATCGTGCATCGAC...
 
 These files are large, and depending on the genome, can be a few GB in size. Mapping many individual sequencing reads to a large fasta file of sequences would take a long time. Building a reference genome indexes the large genome to improve the performance of an aligner and make the alignment step much quicker.
 
-To build an index we need a fasta file that stores the *C. gattii* genome. You will find some reference sequences for the pathogen in `C.gattii_ref/`. The reference sequence is stored in file `Cryptococcus_gattii.fa`. Let's start by loading the Rsubread package and buildiing our reference.
+To build an index we need a fasta file that stores the *C. gattii* genome. You will find some reference sequences for the pathogen in `C.gattii_ref/`. The reference sequence is stored in file `Cryp_gatt_R265.genome.fa` and is an updated, unpublished latest version of the *C.gattii* genome provided by Rhys Farrer. Let's start by loading the Rsubread package and buildiing our reference.
 
 ```{r}
 library(Rsubread)
-buildindex(basename="C.gattii_ref/Cryptococcus_gattii", reference="C.gattii_ref/Cryptococcus_gattii.fa")
+buildindex(basename="C.gattii_ref/Cryptococcus_gattii", reference="C.gattii_ref/Cryp_gatt_R265.genome.fa")
 ```
 
 The `buildindex` command will take a minute or two to run and print a range of progress information to the screen. It will also generate a few new files in the `C.gattii_ref/` folder that you can list with the `dir` command. Try:
@@ -58,7 +58,7 @@ samples = read.table("fastq/samples.txt", sep='\t', header=TRUE)
 head(samples)
 ```
 
-We use `read.table` to read the `samples.txt` file and the `head` command to show the first few lines of what is stored in the resulting `DataFrame` object. We have 5 columns that store the information on strain and experimental conditions such as condition and timepoint etc. The final two columns tell us which files store the reads for the associated sample. The powerful aspect of this approach is that we can easily subset the samples and analyse multiple samples at a time. For example to select only those samples at 0hr (*in vitro* controls) we can use:
+We use `read.table` to read the `samples.txt` file and the `head` command to show the first few lines of what is stored in the resulting `DataFrame` object. We have 5 columns that store the information on strain and experimental conditions such as condition and timepoint etc. Next is the sample ID that comes from how the files are stored at the [Sequence Read Archive](https://www.ncbi.nlm.nih.gov/sra). The final two columns tell us which files store the reads for the associated sample. The powerful aspect of this approach is that we can easily subset the samples and analyse multiple samples at a time. For example to select only those samples at 0hr (*in vitro* controls) we can use:
 
 ```{r}
 samples[samples$Timepoint == '0hr',]
@@ -107,7 +107,7 @@ So far we have mapped reads to positions in our  pathogen genome. Our alignment 
 
 ```{r}
 bam.files = list.files(path = "./alignments/", pattern = ".BAM$", full.names = TRUE)
-fc = featureCounts(bam.files, annot.ex="C.gattii_ref/Cryptococcus_gattii.gff3", isGTFAnnotationFile=TRUE, GTF.featureType = "gene", GTF.attrType = "ID", isPairedEnd=TRUE, nthreads=4)
+fc = featureCounts(bam.files, annot.ex="C.gattii_ref/Cryp_gatt_R265.annotation.gff3", isGTFAnnotationFile=TRUE, GTF.featureType = "gene", GTF.attrType = "ID", isPairedEnd=TRUE, nthreads=4)
 ```
 
 The above code chunk first gets a list of all the BAM files stored in the `alignments` directory much like we did earlier in the workshop. The second part uses the `featureCounts` command to count reads in features passing the list of BAM files and a annotation source, `C.gattii_ref/Cryptococcus_gattii.gff3` as parameters. Additional parameters let `featureCounts` know that the genome annotation (gene chromsome, start and stop information) is in GTF/GFF format (`isGTFAnnotationFile`), that we want to use the `gene` features (rather than `exon`, which is the default) and that the gene ID is stored in the `ID` attribute. Finally, we tell featurecounts that the data is paired end and to use multiple threads to speed up the analysis.
@@ -136,7 +136,7 @@ In this matrix each row is a gene (e.g. `gene:CNBG_0001`) and each column is one
 dim(fc$counts)
 ```
 
-which tells us that we have 6,472 rows (or genes) and 20 columns (or samples - 5 strains * 2 timepoints * 2 replicates).
+which tells us that we have 6,192 rows (or genes) and 20 columns (or samples - 5 strains * 2 timepoints * 2 replicates).
 
 > ## Exercise
 > 
@@ -152,6 +152,16 @@ fc.multi = featureCounts(bam.files, annot.ex="C.gattii_ref/Cryptococcus_gattii.g
 dim(fc.multi$counts)
 ```
 
+### Saving our work
+
+Before we finish this section of the workshop, lets save the important data that we will use for the next workshop. For this we will need just the counts data. Let's output the counts to a file using `write.table`:
+
+```{r}
+write.table(fc$counts, file='DE/counts.txt', quote=FALSE, sep="\t")
+```
+
+We can now read in this file for the next section of our workshop.
+
 ## Summary 
 
 We have now:
@@ -161,7 +171,7 @@ We have now:
 * Aligned fastq files to a reference using `align`
 * Quantified gene expression using `featureCounts`
 
-In the next stage of our workshop we will carry out some differential expression analysis. To go back to the index page click [here](https://uoe-bio3092.github.io/rna-seq/03_workshop.html).
+In the next stage of our workshop we will carry out some [differential expression analysis](diff_exp.nb.html). To go back to the index page click [here](https://uoe-bio3092.github.io/rna-seq/03_workshop.html).
 
 # R Package versions info
 

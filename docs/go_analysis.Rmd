@@ -1,0 +1,181 @@
+---
+title: Gene Ontology enrichment analysis
+output: html_notebook
+---
+
+## Aims
+
+In the previous section of our workshop we used `edgeR` to identify differentially expressed genes. Although identifying differentially expressed genes tells us that the transcriptome of an organism is significantly changing in response to the environment or a treatment, it doesn't tell us about the function of the genes that are changing. In this lesson we will identify the functions of the genes that are significantly differentially expressed.
+
+To do this we will use the [Gene Ontology](http://geneontology.org/). The Gene Ontology (GO) knowledgebase is the world’s largest source of information on the functions of genes. This knowledge is both human-readable and machine-readable, and is a foundation for computational analysis of large-scale molecular biology and genetics experiments in biomedical research. The GO has over 44,167 terms that describe Biological Processes (BP), Molecular Functions (MF) and Cellular Components (CC). There are over 8,000,000 annotations to more than 1,500,000 genes across 4,728 species. We will use some statistical tests to test whether our differentially expressed genes are enriched (contain more than we would expect by chance) for GO terms that may indicate the function of these genes.
+
+## Setup
+
+Text - where is the working directory, how they should be working (Rstudio, command line)
+
+```{r setup}
+require("knitr")
+opts_knit$set(root.dir = "~/Data/BIO3092/")
+```
+
+## Software 
+
+To identify differentaillly expressed genes we will be using the R package, [GOfuncR](https://www.bioconductor.org/packages/release/bioc/html/GOfuncR.html). GOfuncR performs a gene ontology enrichment analysis based on the ontology enrichment software FUNC. It provides the standard candidate vs. background enrichment analysis using the hypergeometric test, as well as three additional tests: (i) the Wilcoxon rank-sum test that is used when genes are ranked, (ii) a binomial test that is used when genes are associated with two counts and (iii) a Chi-square or Fisher's exact test that is used in cases when genes are associated with four counts. To correct for multiple testing and interdependency of the tests, family-wise error rates are computed based on random permutations of the gene-associated variables. GOfuncR also provides tools for exploring the ontology graph and the annotations, and options to take gene-length or spatial clustering of genes into account. It is also possible to provide custom gene coordinates, annotations and ontologies.
+
+As we we have seen through this workshop there are alternatives to GOfuncR to identify GO enrichment. Other commonly used software includes [GOSeq](https://bioconductor.org/packages/release/bioc/html/goseq.html) and [TopGO](https://bioconductor.org/packages/release/bioc/html/topGO.html) which provides similar analysis options. We're using GOfuncR today because of its functions to use custom annotations. 
+
+### Reading the raw data
+
+To start our analysis we need to first read and format our data. We will require three pieces of information i) a list of genes that are differentially expressed, ii) a background set of genes (all genes in our experiment) and iii) a custom set of GO annotations. Let's first read our set of differentially expressed genes:
+
+```{r}
+de.genes = read.table("DE/up-reg_genes_1hr.txt", sep='\t', header=TRUE)
+head(de.genes)
+```
+
+The above code chunk reads in the up-regulated genes at1hr post infection that we identified in our differential expression analysis. Next, we can read in all the genes that appeared in our analysis:
+
+```{r}
+all.genes = read.table("DE/all_genes_1hr.txt", sep='\t', header=TRUE)
+head(all.genes)
+```
+
+Finally, we need to read in our GO annotations so that we know which genes are associated with which GO terms. Fortunately, Rhys Farrer has provided some unpublished GO annotations for *C. gattii* and they have been nicely formatted for our purposes. We can read the annotations with:
+
+```{r}
+go.annotations = read.table("C.gattii_ref/Cryp_gatt_R265.anno.GO", sep='\t', header=FALSE)
+head(go.annotations)
+```
+
+In this DataFrame we can see that the first column  contains our *C. gattii* gene IDs and the second column contains the GO term. This is a format that `GOfuncR` can use for custom GO annotations.
+
+###  Organising the data for GOfuncR
+
+GOfuncR requires that our list of differentially expressed genes (known as candidate genes) and the whole gene set (known as the background genes) are formatted in a DataFrame with one column for the Gene ID and one column with 0 or 1 for whether the gene is background or a candidate, respectively. We can format the data with:
+
+```{r}
+candidates = row.names(de.genes)
+background = row.names(all.genes)
+background = background[!background %in% candidates]
+is.candidate = c(rep(1,length(candidates)), rep(0,length(background)))
+input = data.frame(gene_ids = c(candidates, background), is.candidate)
+```
+
+The above code chunk first creates vectors for the candidates and background by selecting the `row.names` from the DataFrames that store the genes. We remove the candidate genes from the background list by selecting all genes from the background list that do not appear in the candidiate list. We next create a vector `is.candidate` that repeats 1 for the number of candidate genes and then repeats 0 for the number of background genes. Finally, we create the `input` DataFrame where the first column is the gene IDs (candidates then background) and the second column is our `is.candidate` (0 or 1) vector. The DataFrame looks like:
+
+```{r}
+head(input)
+```
+
+The candidate genes appear first in the DataFrame so all the initial `is.candidate` values are 1. If we look at the bottom of the DataFrame:
+
+```{r}
+tail(input)
+```
+
+here the values are 0 as these are the background genes.
+
+### Running the enrichment analysis
+
+We can run GOfuncR to find enriched GO terms using the `go_enrich` function. This function takes our `input` DataFrame and optional parameters for custom annotations (`annotations`) and number of random datasets (`n_randsets`) used to correct for multiple testing. Let's run an enrichment analysis:
+
+```{r}
+library(GOfuncR)
+results = go_enrich(input, annotations=go.annotations, n_randsets=100, silent=TRUE)
+```
+
+We run  the `go_enrich` command with the `silent` parameter set to `TRUE` to stop GOfuncR printing a lot of information to the screen. We have stored the results in a `results` object and we can see what information GOfuncR provides with:
+
+```{r}
+names(results)
+```
+
+The output of `go_enrich` is a list of 4 elements: The most important is the first element, `results`, which contains the results from the enrichment analysis (ordered by family-wise error rate [FWER] for over-representation of candidate genes). The FWER is a correction for multiple testing and interdependency of the tests, and is the p-value we will use to judge significance. The second element, `genes`, is a dataframe with all valid input genes. The third element, `databases`, states the reference genome for the annotations and the version of the GO-graph. The fourth element, `min_p`, is a dataframe with the minimum p-values from the permutations, which are used to compute the FWER. Let's take a look at our enrichment results:
+
+```{r}
+head(results$results)
+```
+
+The results table contains information about the GO (`ontology`, `node_id`, `node_name`) and information about the under- and over-representation of that term in the input candidate genes. We're interested in over-representation (enrichment) and we can see that many terms are signifcant as judged by the `raw_p_overrep` and we see some significance if we look at the corrected p-value in column `FWER_overrep`. We can see terms related to cellular organisation and cellular structures such as organelle (`GO:0043226`) an nucleus (`GO:0005634`) are enriched.
+
+### Visualisation of results
+
+The function `plot_anno_scores` can be used to get a quick visual overview of the gene-associated variables in GO-categories, that were used in an enrichment analysis. `plot_anno_scores` takes a result from `go_enrich` as input together with a vector of GO-IDs. It then plots the combined scores of all input genes for the `go_enrich` analysis in each of the defined GO-categories. The type of the plot depends on the test that was used in `go_enrich`. Note that if custom annotations were used in go_enrich, then they also have to be provided to `plot_anno_scores`. Let's make a plot for the significant GO terms found in the above analysis:
+
+```{r}
+sig.go = results$results[results$results$FWER_overrep < 0.05, 'node_id']
+sig.go
+```
+
+First we extract the GO IDs for the significant results in the `FWER_overrep` column.
+
+```{r}
+plot_anno_scores(results, sig.go, annotations = go.annotations)
+```
+
+Then we use the `plot_anno_scores` function to visualise our 4 significantly enriched GO terms. In the resulting plots the pie charts show the amounts of candidate and background genes that are annotated to the GO-categories and the root nodes (candidate genes in the colour of the corresponding root node). The top panel shows the odds-ratio and 95%-Confidence Interval from a Fisher’s exact test (two-sided) comparing the GO-categories with their root nodes.
+
+> ## Exercise
+> 
+> 1. Read in the results of the differential expression for the down-regulated genes a 0hr vs 1hr
+> 2. Repeat the GO enrichment analysis on this new data
+> 3. Identify any significantly enriched GO terms
+>
+
+```{r, echo=FALSE, eval=FALSE}
+de.down.genes = read.table("DE/down-reg_genes_1hr.txt.txt", sep='\t', header=TRUE)
+all.genes = read.table("DE/all_genes_1hr.txt", sep='\t', header=TRUE)
+go.annotations = read.table("C.gattii_ref/Cryp_gatt_R265.anno.GO", sep='\t', header=FALSE)
+
+candidates = row.names(de.down.genes)
+background = row.names(all.genes)
+background = background[!background %in% candidates]
+is.candidate = c(rep(1,length(candidates)), rep(0,length(background)))
+input = data.frame(gene_ids = c(candidates, background), is.candidate)
+
+results = go_enrich(input, annotations=go.annotations, n_randsets=100, silent=TRUE)
+head(results$results)
+```
+
+### Interpretation of results
+
+It is a positive result that we are able to identify some GO enrichment in our set of differentially expressed genes. It suggests that the differentially expressed genes are not some random selection of genes (which would show no GO enrichment), but instead represent some coherent functions that are changing their expression during infection. Looking at the significant GO terms, these functions appear to represent cellular structures such as organelles and the nucleus. Interpreting these biologically could suggest cellular growth or structural reorganisation during the early stages of infection. It would be the job of the research scientist carrying out this work to go through these significant GO terms and cross-reference these findings with what is currently known about the early stages of infection in *C. gattii*. However, we should always consider alternative hypotheses for our findings. Even though we can identify significantly enriched GO terms, the terms represent very broad cellular functions that can't easily be placed into a context of infection. One potential alternative hypothesis would be that these terms are identified because of the sparsity of GO annotations to *C. gattii* genes. *C. gattii* is a non-model organism and many genes do not have direct experimental evidence for their function, meaning that many genes have no GO annotations and that many GO annotations are inferred from computational evidence such as sequence similarity. 
+
+### Saving our work
+
+Before we finish the workshop, we will save our work as significantly enriched GO terms are useful for tables in reports and scientific publications. Let's save our full results table and the table of significantly enriched GO terms using `write.table`:
+
+```{r}
+write.table(results$results, file='GO/all_go_terms_1hr.txt', quote=FALSE, sep="\t")
+write.table(results$results[results$results$FWER_overrep < 0.05,], file='GO/signif_go_terms_1hr.txt', quote=FALSE, sep="\t")
+```
+
+Here we write 2 files: 
+
+* `all_go_terms_1hr.txt` will contain the whole table of GO enrichment results including both significant and non-significant results.
+* `signif_go_terms_1hr.txt` will contain only the significantly enriched GO terms with an adjusted p-value (FWER) < 0.01.
+
+## Summary 
+
+We have now:
+
+* Read in our differential expression results and *C. gattii* GO annotations
+* Reformatted these data to be used with GOfuncR
+* Identified significantly enriched GO terms using `go_enrich`
+* Visualised the results with `plot_anno_scores`
+* Saved the results
+
+This concludes our RNA-Seq workshop. During the course of this workshop you will have:
+
+* Aligned raw sequencing reads to a reference genome
+* Counted reads that align to known genes
+* Quantified expression and identified differentially expressed genes
+* Perfomed functional pathway analysis using the Gene Ontology
+
+To go back to the index page click [here](https://uoe-bio3092.github.io/rna-seq/03_workshop.html).
+
+# R Package versions info
+
+```{r}
+sessionInfo()
+```

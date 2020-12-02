@@ -1,0 +1,641 @@
+---
+title: Sample coursework
+output: html_notebook
+---
+
+## Info
+
+This work was authored by R.M. Ames and is the sample coursework answers for UoE BIO3092 - Bioinformatics
+
+## Setup
+
+This work requires a directory structure:
+
+* `fastq/` - contains all raw fastq files with Mouse mapping reads already filtered.
+* `coursework/` where all the output files will be stored
+
+```{r setup}
+require("knitr")
+opts_knit$set(root.dir = "~/Data/BIO3092/")
+```
+
+## Software
+
+This work is all done in R and makes use of the following packages:
+
+* `Rsubread` - for read alignment and feature quantification
+* `edgeR` - for differential expression analysis
+* `GOfuncR` - for GO enrichment analysis
+
+```{r}
+library(Rsubread)
+library(edgeR)
+library(GOfuncR)
+```
+
+### Aligning reads to the *C. gattii* reference 
+
+Build the reference
+
+```{r}
+library(Rsubread)
+buildindex(basename="C.gattii_ref/Cryptococcus_gattii", reference="C.gattii_ref/Cryp_gatt_R265.genome.fa")
+```
+
+Read the samples
+
+```{r}
+samples = read.table("fastq/samples.txt", sep='\t', header=TRUE)
+```
+
+Align all samples and store the results in the `coursework/` directory
+
+```{r, eval=FALSE}
+align(index="C.gattii_ref/Cryptococcus_gattii", readfile1=paste('fastq/', timepoint$Read1, sep=''), readfile2=paste('fastq/', timepoint$Read1, sep=''), nthread=4, output_file=paste(gsub("fastq/", "coursework/", readfile1),"subread",output_format,sep="."))
+```
+
+Get a list of BAM files and use `featurecounts` to count reads in features
+
+```{r}
+bam.files = list.files(path = "./coursework/", pattern = ".BAM$", full.names = TRUE)
+fc = featureCounts(bam.files, annot.ex="C.gattii_ref/Cryp_gatt_R265.annotation.gff3", isGTFAnnotationFile=TRUE, GTF.featureType = "gene", GTF.attrType = "ID", isPairedEnd=TRUE, nthreads=4)
+```
+
+Write the counts - just in case!
+
+```{r}
+write.table(fc$counts, file='coursework/all_counts.txt', quote=FALSE, sep="\t")
+```
+
+### Differential expression analysis 0hr vs 1hr
+
+Get the samples for the comparison
+
+```{r}
+samples = read.table("fastq/samples.txt", sep='\t', header=TRUE)
+samples = samples[samples$Timepoint == '0hr' | samples$Timepoint == '1hr',]
+samples = samples[seq(dim(samples)[1],1),]
+```
+
+Get the correct counts - and format the headers
+
+```{r}
+counts = fc$counts
+counts = counts[, samples$Sample]
+colnames(counts) <- substr(colnames(counts), 1, 11)
+```
+
+Get the CPM to filter lowly expressed genes and create the DGE object
+
+```{r}
+counts.cpm = cpm(counts)
+thresh = counts.cpm > 10
+
+keep <- rowSums(thresh) >= 2
+counts.keep <- counts[keep,]
+dge <- DGEList(counts.keep)
+```
+
+Normalisation
+
+```{r}
+dge <- calcNormFactors(dge)
+dge = estimateCommonDisp(dge)
+dge = estimateGLMTrendedDisp(dge)
+dge = estimateTagwiseDisp(dge)
+```
+
+Design matrix
+
+```{r}
+design = model.matrix(~0+samples$Strain+samples$Timepoint+samples$Replicate)
+colnames(design) = make.names(colnames(design))
+```
+
+Differential expression
+
+```{r}
+fit <- glmFit(dge, design)
+lrt.timepoint = glmLRT(fit, coef=6)
+lrt.timepoint$table$PAdj = p.adjust(lrt.timepoint$table$PValue, method="BH")
+topTags(lrt.timepoint)
+```
+
+Write the results
+
+```{r}
+write.table(lrt.timepoint$table, file='coursework/0hr.vs.1hr_genes.txt', quote=FALSE, sep="\t")
+write.table(lrt.timepoint$table[lrt.timepoint$table$logFC < 0 & lrt.timepoint$table$PAdj < 0.01,], file='coursework/0hr.vs.1hr_down.txt', quote=FALSE, sep="\t")
+write.table(lrt.timepoint$table[lrt.timepoint$table$logFC > 0 & lrt.timepoint$table$PAdj < 0.01,], file='coursework/0hr.vs.1hr_up.txt', quote=FALSE, sep="\t")
+```
+
+### Differential expression analysis 0hr vs 6hr
+
+Get the samples for the comparison
+
+```{r}
+samples = read.table("fastq/samples.txt", sep='\t', header=TRUE)
+samples = samples[samples$Timepoint == '0hr' | samples$Timepoint == '6hr',]
+samples = samples[seq(dim(samples)[1],1),]
+```
+
+Get the correct counts - and format the headers
+
+```{r}
+counts = fc$counts
+counts = counts[, samples$Sample]
+colnames(counts) <- substr(colnames(counts), 1, 11)
+```
+
+Get the CPM to filter lowly expressed genes and create the DGE object
+
+```{r}
+counts.cpm = cpm(counts)
+thresh = counts.cpm > 10
+
+keep <- rowSums(thresh) >= 2
+counts.keep <- counts[keep,]
+dge <- DGEList(counts.keep)
+```
+
+Normalisation
+
+```{r}
+dge <- calcNormFactors(dge)
+dge = estimateCommonDisp(dge)
+dge = estimateGLMTrendedDisp(dge)
+dge = estimateTagwiseDisp(dge)
+```
+
+Design matrix
+
+```{r}
+design = model.matrix(~0+samples$Strain+samples$Timepoint+samples$Replicate)
+colnames(design) = make.names(colnames(design))
+```
+
+Differential expression
+
+```{r}
+fit <- glmFit(dge, design)
+lrt.timepoint = glmLRT(fit, coef=6)
+lrt.timepoint$table$PAdj = p.adjust(lrt.timepoint$table$PValue, method="BH")
+topTags(lrt.timepoint)
+```
+
+Write the results
+
+```{r}
+write.table(lrt.timepoint$table, file='coursework/0hr.vs.6hr_genes.txt', quote=FALSE, sep="\t")
+write.table(lrt.timepoint$table[lrt.timepoint$table$logFC < 0 & lrt.timepoint$table$PAdj < 0.01,], file='coursework/0hr.vs.6hr_down.txt', quote=FALSE, sep="\t")
+write.table(lrt.timepoint$table[lrt.timepoint$table$logFC > 0 & lrt.timepoint$table$PAdj < 0.01,], file='coursework/0hr.vs.6hr_up.txt', quote=FALSE, sep="\t")
+```
+
+### Differential expression analysis 1hr vs 6hr
+
+Get the samples for the comparison
+
+```{r}
+samples = read.table("fastq/samples.txt", sep='\t', header=TRUE)
+samples = samples[samples$Timepoint == '1hr' | samples$Timepoint == '6hr',]
+samples = samples[seq(dim(samples)[1],1),]
+```
+
+Get the correct counts - and format the headers
+
+```{r}
+counts = fc$counts
+counts = counts[, samples$Sample]
+colnames(counts) <- substr(colnames(counts), 1, 11)
+```
+
+Get the CPM to filter lowly expressed genes and create the DGE object
+
+```{r}
+counts.cpm = cpm(counts)
+thresh = counts.cpm > 10
+
+keep <- rowSums(thresh) >= 2
+counts.keep <- counts[keep,]
+dge <- DGEList(counts.keep)
+```
+
+Normalisation
+
+```{r}
+dge <- calcNormFactors(dge)
+dge = estimateCommonDisp(dge)
+dge = estimateGLMTrendedDisp(dge)
+dge = estimateTagwiseDisp(dge)
+```
+
+Design matrix
+
+```{r}
+design = model.matrix(~0+samples$Strain+samples$Timepoint+samples$Replicate)
+colnames(design) = make.names(colnames(design))
+```
+
+Differential expression
+
+```{r}
+fit <- glmFit(dge, design)
+lrt.timepoint = glmLRT(fit, coef=6)
+lrt.timepoint$table$PAdj = p.adjust(lrt.timepoint$table$PValue, method="BH")
+topTags(lrt.timepoint)
+```
+
+Write the results
+
+```{r}
+write.table(lrt.timepoint$table, file='coursework/1hr.vs.6hr_genes.txt', quote=FALSE, sep="\t")
+write.table(lrt.timepoint$table[lrt.timepoint$table$logFC < 0 & lrt.timepoint$table$PAdj < 0.01,], file='coursework/1hr.vs.6hr_down.txt', quote=FALSE, sep="\t")
+write.table(lrt.timepoint$table[lrt.timepoint$table$logFC > 0 & lrt.timepoint$table$PAdj < 0.01,], file='coursework/1hr.vs.6hr_up.txt', quote=FALSE, sep="\t")
+```
+
+### Differential expression between strains - 0hr
+
+Read in the samples 
+
+```{r}
+samples = read.table("fastq/samples.txt", sep='\t', header=TRUE)
+samples = samples[samples$Timepoint == '0hr',]
+```
+
+Getting the counts and formatting the names
+
+```{r}
+counts = fc$counts
+counts = counts[,samples$Sample]
+colnames(counts) <- substr(colnames(counts), 1, 11)
+```
+
+Filter lowly expressed genes and create the DGE object
+
+```{r}
+counts.cpm = cpm(counts)
+thresh = counts.cpm > 10
+
+keep <- rowSums(thresh) >= 2
+counts.keep <- counts[keep,]
+dge <- DGEList(counts.keep)
+```
+
+Normalisation
+
+```{r}
+dge <- calcNormFactors(dge)
+dge = estimateCommonDisp(dge)
+dge = estimateGLMTrendedDisp(dge)
+dge = estimateTagwiseDisp(dge)
+```
+
+Design matrix for strains
+
+```{r}
+design = model.matrix(~samples$Strain)
+colnames(design) = make.names(colnames(design))
+```
+
+Differential expression with ANOVA-type analysis
+
+```{r}
+fit <- glmQLFit(dge, design)
+anova <- glmQLFTest(fit, coef=2:5)
+anova$table$PAdj = p.adjust(anova$table$PValue, method="BH")
+topTags(anova)
+```
+
+Write the results
+
+```{r}
+write.table(anova$table, file='cousrework/strains.0hr_genes.txt', quote=FALSE, sep="\t")
+write.table(anova$table[anova$table$PAdj < 0.01,], file='coursework/strains.0hr_diff.txt', quote=FALSE, sep="\t")
+```
+
+### Differential expression between strains - 1hr
+
+Read in the samples 
+
+```{r}
+samples = read.table("fastq/samples.txt", sep='\t', header=TRUE)
+samples = samples[samples$Timepoint == '1hr',]
+```
+
+Getting the counts and formatting the names
+
+```{r}
+counts = fc$counts
+counts = counts[,samples$Sample]
+colnames(counts) <- substr(colnames(counts), 1, 11)
+```
+
+Filter lowly expressed genes and create the DGE object
+
+```{r}
+counts.cpm = cpm(counts)
+thresh = counts.cpm > 10
+
+keep <- rowSums(thresh) >= 2
+counts.keep <- counts[keep,]
+dge <- DGEList(counts.keep)
+```
+
+Normalisation
+
+```{r}
+dge <- calcNormFactors(dge)
+dge = estimateCommonDisp(dge)
+dge = estimateGLMTrendedDisp(dge)
+dge = estimateTagwiseDisp(dge)
+```
+
+Design matrix for strains
+
+```{r}
+design = model.matrix(~samples$Strain)
+colnames(design) = make.names(colnames(design))
+```
+
+Differential expression with ANOVA-type analysis
+
+```{r}
+fit <- glmQLFit(dge, design)
+anova <- glmQLFTest(fit, coef=2:5)
+anova$table$PAdj = p.adjust(anova$table$PValue, method="BH")
+topTags(anova)
+```
+
+Write the results
+
+```{r}
+write.table(anova$table, file='cousrework/strains.1hr_genes.txt', quote=FALSE, sep="\t")
+write.table(anova$table[anova$table$PAdj < 0.01,], file='coursework/strains.1hr_diff.txt', quote=FALSE, sep="\t")
+```
+
+### Differential expression between strains - 6hr
+
+Read in the samples 
+
+```{r}
+samples = read.table("fastq/samples.txt", sep='\t', header=TRUE)
+samples = samples[samples$Timepoint == '6hr',]
+```
+
+Getting the counts and formatting the names
+
+```{r}
+counts = fc$counts
+counts = counts[,samples$Sample]
+colnames(counts) <- substr(colnames(counts), 1, 11)
+```
+
+Filter lowly expressed genes and create the DGE object
+
+```{r}
+counts.cpm = cpm(counts)
+thresh = counts.cpm > 10
+
+keep <- rowSums(thresh) >= 2
+counts.keep <- counts[keep,]
+dge <- DGEList(counts.keep)
+```
+
+Normalisation
+
+```{r}
+dge <- calcNormFactors(dge)
+dge = estimateCommonDisp(dge)
+dge = estimateGLMTrendedDisp(dge)
+dge = estimateTagwiseDisp(dge)
+```
+
+Design matrix for strains
+
+```{r}
+design = model.matrix(~samples$Strain)
+colnames(design) = make.names(colnames(design))
+```
+
+Differential expression with ANOVA-type analysis
+
+```{r}
+fit <- glmQLFit(dge, design)
+anova <- glmQLFTest(fit, coef=2:5)
+anova$table$PAdj = p.adjust(anova$table$PValue, method="BH")
+topTags(anova)
+```
+
+Write the results
+
+```{r}
+write.table(anova$table, file='cousrework/strains.6hr_genes.txt', quote=FALSE, sep="\t")
+write.table(anova$table[anova$table$PAdj < 0.01,], file='coursework/strains.6hr_diff.txt', quote=FALSE, sep="\t")
+```
+
+### GO enrichment - 0hr vs 1hr
+
+Read in all the differentially expressed genes
+
+```{r}
+de.genes.up = read.table("coursework/0hr.vs.1hr_up.txt", sep='\t', header=TRUE)
+de.genes.down = read.table("coursework/0hr.vs.1hr_down.txt.txt", sep='\t', header=TRUE)
+all.genes = read.table("coursework/0hr.vs.1hr_genes.txt", sep='\t', header=TRUE)
+go.annotations = read.table("C.gattii_ref/Cryp_gatt_R265.anno.GO", sep='\t', header=FALSE)
+```
+
+Construct candidate and background DataFrame
+
+```{r}
+candidates.up = row.names(de.genes.up)
+candidates.down = row.names(de.genes.down)
+
+background = row.names(all.genes)
+background.up = background[!background %in% candidates.up]
+background.down = background[!background %in% candidates.down]
+
+is.candidate = c(rep(1,length(candidates.up)), rep(0,length(background.up)))
+input.up = data.frame(gene_ids = c(candidates.up, background.up), is.candidate)
+
+is.candidate = c(rep(1,length(candidates.down)), rep(0,length(background.down)))
+input.down = data.frame(gene_ids = c(candidates.down, background.down), is.candidate)
+```
+
+Calculate enriched GO terms
+
+```{r}
+results.up = go_enrich(input.up, annotations=go.annotations, n_randsets=100, silent=TRUE)
+head(results.up$results)
+```
+
+```{r}
+results.down = go_enrich(input.down, annotations=go.annotations, n_randsets=100, silent=TRUE)
+head(results.down$results)
+```
+
+### GO enrichment - 0hr vs 6hr
+
+Read in all the differentially expressed genes
+
+```{r}
+de.genes.up = read.table("coursework/0hr.vs.6hr_up.txt", sep='\t', header=TRUE)
+de.genes.down = read.table("coursework/0hr.vs.6hr_down.txt.txt", sep='\t', header=TRUE)
+all.genes = read.table("coursework/0hr.vs.6hr_genes.txt", sep='\t', header=TRUE)
+go.annotations = read.table("C.gattii_ref/Cryp_gatt_R265.anno.GO", sep='\t', header=FALSE)
+```
+
+Construct candidate and background DataFrame
+
+```{r}
+candidates.up = row.names(de.genes.up)
+candidates.down = row.names(de.genes.down)
+
+background = row.names(all.genes)
+background.up = background[!background %in% candidates.up]
+background.down = background[!background %in% candidates.down]
+
+is.candidate = c(rep(1,length(candidates.up)), rep(0,length(background.up)))
+input.up = data.frame(gene_ids = c(candidates.up, background.up), is.candidate)
+
+is.candidate = c(rep(1,length(candidates.down)), rep(0,length(background.down)))
+input.down = data.frame(gene_ids = c(candidates.down, background.down), is.candidate)
+```
+
+Calculate enriched GO terms
+
+```{r}
+results.up = go_enrich(input.up, annotations=go.annotations, n_randsets=100, silent=TRUE)
+head(results.up$results)
+```
+
+```{r}
+results.down = go_enrich(input.down, annotations=go.annotations, n_randsets=100, silent=TRUE)
+head(results.down$results)
+```
+
+### GO enrichment - 1hr vs 6hr
+
+Read in all the differentially expressed genes
+
+```{r}
+de.genes.up = read.table("coursework/1hr.vs.6hr_up.txt", sep='\t', header=TRUE)
+de.genes.down = read.table("coursework/1hr.vs.6hr_down.txt.txt", sep='\t', header=TRUE)
+all.genes = read.table("coursework/1hr.vs.6hr_genes.txt", sep='\t', header=TRUE)
+go.annotations = read.table("C.gattii_ref/Cryp_gatt_R265.anno.GO", sep='\t', header=FALSE)
+```
+
+Construct candidate and background DataFrame
+
+```{r}
+candidates.up = row.names(de.genes.up)
+candidates.down = row.names(de.genes.down)
+
+background = row.names(all.genes)
+background.up = background[!background %in% candidates.up]
+background.down = background[!background %in% candidates.down]
+
+is.candidate = c(rep(1,length(candidates.up)), rep(0,length(background.up)))
+input.up = data.frame(gene_ids = c(candidates.up, background.up), is.candidate)
+
+is.candidate = c(rep(1,length(candidates.down)), rep(0,length(background.down)))
+input.down = data.frame(gene_ids = c(candidates.down, background.down), is.candidate)
+```
+
+Calculate enriched GO terms
+
+```{r}
+results.up = go_enrich(input.up, annotations=go.annotations, n_randsets=100, silent=TRUE)
+head(results.up$results)
+```
+
+```{r}
+results.down = go_enrich(input.down, annotations=go.annotations, n_randsets=100, silent=TRUE)
+head(results.down$results)
+```
+
+### GO enrichment - strains at 0hr
+
+Read in all the differentially expressed genes
+
+```{r}
+de.genes = read.table("coursework/strains.0hr_diff.txt", sep='\t', header=TRUE)
+all.genes = read.table("coursework/strains.0hr_genes.txt", sep='\t', header=TRUE)
+go.annotations = read.table("C.gattii_ref/Cryp_gatt_R265.anno.GO", sep='\t', header=FALSE)
+```
+
+Construct candidate and background DataFrame
+
+```{r}
+candidates = row.names(de.genes)
+background = row.names(all.genes)
+background = background[!background %in% candidates]
+is.candidate = c(rep(1,length(candidates)), rep(0,length(background)))
+input = data.frame(gene_ids = c(candidates, background), is.candidate)
+```
+
+Calculate enriched GO terms
+
+```{r}
+results = go_enrich(input, annotations=go.annotations, n_randsets=100, silent=TRUE)
+head(results$results)
+```
+
+### GO enrichment - strains at 1hr
+
+Read in all the differentially expressed genes
+
+```{r}
+de.genes = read.table("coursework/strains.1hr_diff.txt", sep='\t', header=TRUE)
+all.genes = read.table("coursework/strains.1hr_genes.txt", sep='\t', header=TRUE)
+go.annotations = read.table("C.gattii_ref/Cryp_gatt_R265.anno.GO", sep='\t', header=FALSE)
+```
+
+Construct candidate and background DataFrame
+
+```{r}
+candidates = row.names(de.genes)
+background = row.names(all.genes)
+background = background[!background %in% candidates]
+is.candidate = c(rep(1,length(candidates)), rep(0,length(background)))
+input = data.frame(gene_ids = c(candidates, background), is.candidate)
+```
+
+Calculate enriched GO terms
+
+```{r}
+results = go_enrich(input, annotations=go.annotations, n_randsets=100, silent=TRUE)
+head(results$results)
+```
+
+### GO enrichment - strains at 6hr
+
+Read in all the differentially expressed genes
+
+```{r}
+de.genes = read.table("coursework/strains.6hr_diff.txt", sep='\t', header=TRUE)
+all.genes = read.table("coursework/strains.6hr_genes.txt", sep='\t', header=TRUE)
+go.annotations = read.table("C.gattii_ref/Cryp_gatt_R265.anno.GO", sep='\t', header=FALSE)
+```
+
+Construct candidate and background DataFrame
+
+```{r}
+candidates = row.names(de.genes)
+background = row.names(all.genes)
+background = background[!background %in% candidates]
+is.candidate = c(rep(1,length(candidates)), rep(0,length(background)))
+input = data.frame(gene_ids = c(candidates, background), is.candidate)
+```
+
+Calculate enriched GO terms
+
+```{r}
+results = go_enrich(input, annotations=go.annotations, n_randsets=100, silent=TRUE)
+head(results$results)
+```
+
+# R Package versions info
+
+```{r}
+sessionInfo()
+```
