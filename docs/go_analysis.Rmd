@@ -81,7 +81,7 @@ here the values are 0 as these are the background genes.
 
 We can run GOfuncR to find enriched GO terms using the `go_enrich` function. This function takes our `input` DataFrame and optional parameters for custom annotations (`annotations`) and number of random datasets (`n_randsets`) used to correct for multiple testing. Let's run an enrichment analysis:
 
-```{r}
+```{r, eval=FALSE}
 library(GOfuncR)
 results = go_enrich(input, annotations=go.annotations, n_randsets=100, silent=TRUE)
 ```
@@ -98,7 +98,7 @@ The output of `go_enrich` is a list of 4 elements: The most important is the fir
 head(results$results)
 ```
 
-The results table contains information about the GO (`ontology`, `node_id`, `node_name`) and information about the under- and over-representation of that term in the input candidate genes. We're interested in over-representation (enrichment) and we can see that many terms are signifcant as judged by the `raw_p_overrep` and we see some significance if we look at the corrected p-value in column `FWER_overrep`. We can see terms related to cellular organisation and cellular structures such as organelle (`GO:0043226`) an nucleus (`GO:0005634`) are enriched.
+The results table contains information about the GO (`ontology`, `node_id`, `node_name`) and information about the under- and over-representation of that term in the input candidate genes. We're interested in over-representation (enrichment) and we can see that many terms are signifcant as judged by the `raw_p_overrep` and we see some significance if we look at the corrected p-value in column `FWER_overrep`. We can see terms related to cellular organisation and cellular structures such as organelle (`GO:0043226`) an vesicle-mediated transport (`GO:0016192`) are enriched. Note - that significance may change slightly between runs (so your results may not be exactly the same) as the random datasets, used to calculate FWER, may change between runs.
 
 ### Visualisation of results
 
