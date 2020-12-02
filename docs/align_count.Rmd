@@ -5,11 +5,13 @@ output: html_notebook
 
 ## Aims
 
-Text about what we will do in this section
+To start our analysis we will align raw sequencing reads, provided as fastq files, to the reference *C. gattii* genome. You will learn about the fastq file format and use the R package, Rsubread, to build an index, align reads and count reads that map to genes. This is the essential first step in the analysis of RNA-Seq data and performing any downstream analyses such as identifying differential gene expression.
 
 ## Setup
 
-Text - where is the working directory, how they should be working (Rstudio, command line)
+For this section of the workshop you will need access to several fastq files stored in the `fastq/` directory and a range of alignments stored in the `alignments/` directory. On the virtual machine the full path to the workshop directory is `/home/ubuntu/resources/workshops/ws4-differential-expression/`. Within this directory you will see the `fastq/` and `alignments/` directories, plus other directories that will be used throughout the workshop.
+
+To make these directories and files visible to R (without needing to enter the whole path each time) you can set the working directory using `setwd('/home/ubuntu/resources/workshops/ws4-differential-expression/')`. Or if you are using a R notebook you can use the below code chunk to set the root directory for the analysis. Simply replace my own working directory `'~/Data/BIO3092/'` with the virtual machine working directory `'/home/ubuntu/resources/workshops/ws4-differential-expression/'`. Obviously, if you're using your own machine this path should be set to your own version of the working directory after downloading all the workshop data as described in the [prerequisites page](https://uoe-bio3092.github.io/rna-seq/01_prerequisites.html).
 
 ```{r setup}
 require("knitr")
