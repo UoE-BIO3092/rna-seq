@@ -20,11 +20,11 @@ require("knitr")
 opts_knit$set(root.dir = "~/Data/BIO3092/")
 ```
 
-## Software 
+## Software
 
 To identify differentaillly expressed genes we will be using the R package, [GOfuncR](https://www.bioconductor.org/packages/release/bioc/html/GOfuncR.html). GOfuncR performs a gene ontology enrichment analysis based on the ontology enrichment software FUNC. It provides the standard candidate vs. background enrichment analysis using the hypergeometric test, as well as three additional tests: (i) the Wilcoxon rank-sum test that is used when genes are ranked, (ii) a binomial test that is used when genes are associated with two counts and (iii) a Chi-square or Fisher's exact test that is used in cases when genes are associated with four counts. To correct for multiple testing and interdependency of the tests, family-wise error rates are computed based on random permutations of the gene-associated variables. GOfuncR also provides tools for exploring the ontology graph and the annotations, and options to take gene-length or spatial clustering of genes into account. It is also possible to provide custom gene coordinates, annotations and ontologies.
 
-As we we have seen through this workshop there are alternatives to GOfuncR to identify GO enrichment. Other commonly used software includes [GOSeq](https://bioconductor.org/packages/release/bioc/html/goseq.html) and [TopGO](https://bioconductor.org/packages/release/bioc/html/topGO.html) which provides similar analysis options. We're using GOfuncR today because of its functions to use custom annotations. 
+As we we have seen through this workshop there are alternatives to GOfuncR to identify GO enrichment. Other commonly used software includes [GOSeq](https://bioconductor.org/packages/release/bioc/html/goseq.html) and [TopGO](https://bioconductor.org/packages/release/bioc/html/topGO.html) which provides similar analysis options. We're using GOfuncR today because of its functions to use custom annotations.
 
 ### Reading the raw data
 
@@ -118,7 +118,7 @@ plot_anno_scores(results, sig.go, annotations = go.annotations)
 Then we use the `plot_anno_scores` function to visualise our 4 significantly enriched GO terms. In the resulting plots the pie charts show the amounts of candidate and background genes that are annotated to the GO-categories and the root nodes (candidate genes in the colour of the corresponding root node). The top panel shows the odds-ratio and 95%-Confidence Interval from a Fisher’s exact test (two-sided) comparing the GO-categories with their root nodes.
 
 > ## Exercise
-> 
+>
 > 1. Read in the results of the differential expression for the down-regulated genes a 0hr vs 1hr
 > 2. Repeat the GO enrichment analysis on this new data
 > 3. Identify any significantly enriched GO terms
@@ -141,7 +141,7 @@ head(results$results)
 
 ### Interpretation of results
 
-It is a positive result that we are able to identify some GO enrichment in our set of differentially expressed genes. It suggests that the differentially expressed genes are not some random selection of genes (which would show no GO enrichment), but instead represent some coherent functions that are changing their expression during infection. Looking at the significant GO terms, these functions appear to represent cellular structures such as organelles and the nucleus. Interpreting these biologically could suggest cellular growth or structural reorganisation during the early stages of infection. It would be the job of the research scientist carrying out this work to go through these significant GO terms and cross-reference these findings with what is currently known about the early stages of infection in *C. gattii*. However, we should always consider alternative hypotheses for our findings. Even though we can identify significantly enriched GO terms, the terms represent very broad cellular functions that can't easily be placed into a context of infection. One potential alternative hypothesis would be that these terms are identified because of the sparsity of GO annotations to *C. gattii* genes. *C. gattii* is a non-model organism and many genes do not have direct experimental evidence for their function, meaning that many genes have no GO annotations and that many GO annotations are inferred from computational evidence such as sequence similarity. 
+It is a positive result that we are able to identify some GO enrichment in our set of differentially expressed genes. It suggests that the differentially expressed genes are not some random selection of genes (which would show no GO enrichment), but instead represent some coherent functions that are changing their expression during infection. Looking at the significant GO terms, these functions appear to represent cellular structures such as organelles and the nucleus. Interpreting these biologically could suggest cellular growth or structural reorganisation during the early stages of infection. It would be the job of the research scientist carrying out this work to go through these significant GO terms and cross-reference these findings with what is currently known about the early stages of infection in *C. gattii*. However, we should always consider alternative hypotheses for our findings. Even though we can identify significantly enriched GO terms, the terms represent very broad cellular functions that can't easily be placed into a context of infection. One potential alternative hypothesis would be that these terms are identified because of the sparsity of GO annotations to *C. gattii* genes. *C. gattii* is a non-model organism and many genes do not have direct experimental evidence for their function, meaning that many genes have no GO annotations and that many GO annotations are inferred from computational evidence such as sequence similarity.
 
 ### Saving our work
 
@@ -152,12 +152,12 @@ write.table(results$results, file='GO/all_go_terms_1hr.txt', quote=FALSE, sep="\
 write.table(results$results[results$results$FWER_overrep < 0.05,], file='GO/signif_go_terms_1hr.txt', quote=FALSE, sep="\t")
 ```
 
-Here we write 2 files: 
+Here we write 2 files:
 
 * `all_go_terms_1hr.txt` will contain the whole table of GO enrichment results including both significant and non-significant results.
 * `signif_go_terms_1hr.txt` will contain only the significantly enriched GO terms with an adjusted p-value (FWER) < 0.01.
 
-## Summary 
+## Summary
 
 We have now:
 
@@ -172,7 +172,7 @@ This concludes our RNA-Seq workshop. During the course of this workshop you will
 * Aligned raw sequencing reads to a reference genome
 * Counted reads that align to known genes
 * Quantified expression and identified differentially expressed genes
-* Perfomed functional pathway analysis using the Gene Ontology
+* Performed functional pathway analysis using the Gene Ontology
 
 To go back to the index page click [here](https://uoe-bio3092.github.io/rna-seq/03_workshop.html).
 
