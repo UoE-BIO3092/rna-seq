@@ -5,7 +5,7 @@ order: 1
 ---
 # Using OpenStack
 
-To complete this workshop we will be using a BIO3092-2020 instance on the University of Exeter's OpenStack. If you have already created an instance as part of another BIO3092 workshop you should log into that instance now and  move onto the workshop [introduction](https://uoe-bio3092.github.io/rna-seq/02_introduction.html). If for any reason you have not created an instance or need to create another see the instructions below.
+To complete this workshop we will be using a BIO3092-2020 instance on the University of Exeter's OpenStack. **If you have already created an instance as part of another BIO3092 workshop you should log into that instance now and  move onto the workshop [introduction](https://uoe-bio3092.github.io/rna-seq/02_introduction.html)**. If for any reason you have not created an instance or need to create another see the instructions below.
 
 ## Creating an instance on Openstack
 
