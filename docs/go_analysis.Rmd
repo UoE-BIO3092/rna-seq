@@ -11,18 +11,24 @@ To do this we will use the [Gene Ontology](http://geneontology.org/). The Gene O
 
 ## Setup
 
-For this section of the workshop you will need access to the gene counts data that you generated in the previous section of the workshop and stored in the `DE/` directory as well as *C. gattii* annotation  data stored in `C.gattii_ref/`. On the virtual machine the full path to the workshop directory is `/home/ubuntu/resources/workshops/ws4-differential-expression/`. Within this directory you will see the `DE/` and `C.gattii_ref/` directories, plus other directories that will be used throughout the workshop.
+On the virtual machine the full path to the workshop directory is `/home/ubuntu/resources/workshops/ws4-differential-expression/`. Within this directory you will see the `DE/` and `C.gattii_ref/` directories, plus other directories that will be used throughout the workshop. For this section of the workshop you will need access to the gene counts data that you generated in the previous section of the workshop and stored in the `DE/` directory as well as *C. gattii* annotation  data stored in `C.gattii_ref/`. 
 
-To make these directories and files visible to R (without needing to enter the whole path each time) you can set the working directory using `setwd('/home/ubuntu/resources/workshops/ws4-differential-expression/')`. Or if you are using a R notebook you can use the below code chunk to set the root directory for the analysis. Simply replace my own working directory `'~/Data/BIO3092/'` with the virtual machine working directory `'/home/ubuntu/resources/workshops/ws4-differential-expression/'`. Obviously, if you're using your own machine this path should be set to your own version of the working directory after downloading all the workshop data as described in the [prerequisites page](https://uoe-bio3092.github.io/rna-seq/01_prerequisites.html).
+To make these directories and files visible to R (without needing to enter the whole path each time) you can set the working directory using `
 
-```{r setup}
+```{r, eval=FALSE}
+setwd('/home/ubuntu/resources/workshops/ws4-differential-expression/')
+```
+
+Obviously, if you're using your own machine this path should be set to your own version of the working directory after downloading all the workshop data as described in the [prerequisites page](https://uoe-bio3092.github.io/rna-seq/01_prerequisites.html). 
+
+```{r setup, echo=FALSE}
 require("knitr")
 opts_knit$set(root.dir = "~/Data/BIO3092/")
 ```
 
 ## Software
 
-To identify differentaillly expressed genes we will be using the R package, [GOfuncR](https://www.bioconductor.org/packages/release/bioc/html/GOfuncR.html). GOfuncR performs a gene ontology enrichment analysis based on the ontology enrichment software FUNC. It provides the standard candidate vs. background enrichment analysis using the hypergeometric test, as well as three additional tests: (i) the Wilcoxon rank-sum test that is used when genes are ranked, (ii) a binomial test that is used when genes are associated with two counts and (iii) a Chi-square or Fisher's exact test that is used in cases when genes are associated with four counts. To correct for multiple testing and interdependency of the tests, family-wise error rates are computed based on random permutations of the gene-associated variables. GOfuncR also provides tools for exploring the ontology graph and the annotations, and options to take gene-length or spatial clustering of genes into account. It is also possible to provide custom gene coordinates, annotations and ontologies.
+To identify differentailly expressed genes we will be using the R package, [GOfuncR](https://www.bioconductor.org/packages/release/bioc/html/GOfuncR.html). GOfuncR performs a gene ontology enrichment analysis based on the ontology enrichment software FUNC. It provides the standard candidate vs. background enrichment analysis using the hypergeometric test, as well as three additional tests: (i) the Wilcoxon rank-sum test that is used when genes are ranked, (ii) a binomial test that is used when genes are associated with two counts and (iii) a Chi-square or Fisher's exact test that is used in cases when genes are associated with four counts. To correct for multiple testing and interdependency of the tests, family-wise error rates are computed based on random permutations of the gene-associated variables. GOfuncR also provides tools for exploring the ontology graph and the annotations, and options to take gene-length or spatial clustering of genes into account. It is also possible to provide custom gene coordinates, annotations and ontologies.
 
 As we we have seen through this workshop there are alternatives to GOfuncR to identify GO enrichment. Other commonly used software includes [GOSeq](https://bioconductor.org/packages/release/bioc/html/goseq.html) and [TopGO](https://bioconductor.org/packages/release/bioc/html/topGO.html) which provides similar analysis options. We're using GOfuncR today because of its functions to use custom annotations.
 
@@ -115,7 +121,7 @@ First we extract the GO IDs for the significant results in the `FWER_overrep` co
 plot_anno_scores(results, sig.go, annotations = go.annotations)
 ```
 
-Then we use the `plot_anno_scores` function to visualise our 4 significantly enriched GO terms. In the resulting plots the pie charts show the amounts of candidate and background genes that are annotated to the GO-categories and the root nodes (candidate genes in the colour of the corresponding root node). The top panel shows the odds-ratio and 95%-Confidence Interval from a Fisher’s exact test (two-sided) comparing the GO-categories with their root nodes.
+Then we use the `plot_anno_scores` function to visualise our 4 significantly enriched GO terms. On the virtual machine R will create a new PDF called `Rplots.pdf` that stores this visualisation. You can download and view this file from MobaXTerm. In the resulting plots the pie charts show the amounts of candidate and background genes that are annotated to the GO-categories and the root nodes (candidate genes in the colour of the corresponding root node). The top panel shows the odds-ratio and 95%-Confidence Interval from a Fisher’s exact test (two-sided) comparing the GO-categories with their root nodes.
 
 > ## Exercise
 >

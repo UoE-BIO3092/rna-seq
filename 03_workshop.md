@@ -6,23 +6,21 @@ order: 3
 
 ## Setup
 
-This workshop has been designed in R in a [R Markdown](http://rmarkdown.rstudio.com) Notebook using [RStudio](https://rstudio.com/). The markdown language allows you to easily format text, include code snippets and display images. When you execute code within the notebook, the results appear beneath the code, which includes any charts or tables created. Finally, notebooks produce a HTML document that can be viewed in any browser. There is a very handy [R Markdown cheatsheet](https://rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf) available from RStudio.
+This workshop has been designed in R in a [R Markdown](http://rmarkdown.rstudio.com) Notebook using [RStudio](https://rstudio.com/). The markdown language allows you to easily format text, include code snippets and display images. When you execute code within the notebook, the results appear beneath the code, which includes any charts or tables created. Finally, notebooks produce a HTML document that can be viewed in any browser. You can download the R Markdown for each section of this workshop using the links below. You may wish to record your work or produce your coursework in an R Markdown Notebook. There is a very handy [R Markdown cheatsheet](https://rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf) available from RStudio.
 
 ### Using the Virtual Machine
 
-Once you have logged onto your instance, begin the workshop by opening RStudio. RStudio is installed at `/home/ubuntu/rstudio-1.3.1093/bin/`. Once you have opened RStudio, open a new RStudio Markdown Notebook with `File - New File - R Notebook`. This should open a new notebook populated with some text and example code.
+Once you have logged onto your instance, begin the workshop by starting R. On the command line enter
 
-![R Notebook](/images/R-notebook.png)
+```
+R
+```
 
-The populated text gives examples of how to format links, emphasise text and insert code chunks. Code chunks can be run, as described, to produce table or plots that are shown directly in the window.
+When you press enter you will see the R prompt that should look something like:
 
-![R Notebook](/images/R-notebook-run.png)
+![R Prompt](/images/R_prompt.png)
 
-When you save an R notebook it automatically creates a `html` document along side it that can be viewed in a browser. This can also be changed to a `pdf` output. R notebooks are powerful tools for developing code, visualising results and producing reports.
-
-![R Notebook](/images/R-notebook-html.png)
-
-Once you have started RStudio and opened a new Notebook see the workshop aims and materials below.
+You are now ready to start the workshops using the links below.
 
 ### Using your own machine
 

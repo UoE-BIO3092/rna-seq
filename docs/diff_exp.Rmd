@@ -11,18 +11,24 @@ There are many steps involved in analysing an RNA-Seq experiment. We have alread
 
 ## Setup
 
-For this section of the workshop you will need access to the gene counts data that you generated in the previous section of the workshop and stored in the `DE/` directory. On the virtual machine the full path to the workshop directory is `/home/ubuntu/resources/workshops/ws4-differential-expression/`. Within this directory you will see the `DE/` directory, plus other directories that will be used throughout the workshop.
+On the virtual machine the full path to the workshop directory is `/home/ubuntu/resources/workshops/ws4-differential-expression/`. Within this directory you will see the `DE/` directory, plus other directories that will be used throughout the workshop. For this section of the workshop you will need access to the gene counts data that you generated in the previous section of the workshop and stored in the `DE/` directory. You should be able to see these folders and files using the Graphical SFTP browser in MobaXTerm.
 
-To make these directories and files visible to R (without needing to enter the whole path each time) you can set the working directory using `setwd('/home/ubuntu/resources/workshops/ws4-differential-expression/')`. Or if you are using a R notebook you can use the below code chunk to set the root directory for the analysis. Simply replace my own working directory `'~/Data/BIO3092/'` with the virtual machine working directory `'/home/ubuntu/resources/workshops/ws4-differential-expression/'`. Obviously, if you're using your own machine this path should be set to your own version of the working directory after downloading all the workshop data as described in the [prerequisites page](https://uoe-bio3092.github.io/rna-seq/01_prerequisites.html).
+To make these directories and files visible to R (without needing to enter the whole path each time) you can set the working directory using `
 
-```{r setup}
+```{r, eval=FALSE}
+setwd('/home/ubuntu/resources/workshops/ws4-differential-expression/')
+```
+
+Obviously, if you're using your own machine this path should be set to your own version of the working directory after downloading all the workshop data as described in the [prerequisites page](https://uoe-bio3092.github.io/rna-seq/01_prerequisites.html). 
+
+```{r setup, echo=FALSE}
 require("knitr")
 opts_knit$set(root.dir = "~/Data/BIO3092/")
 ```
 
 ## Software 
 
-To identify differentaillly expressed genes we will be using the R package, [edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html). EdgeR allows differential expression analysis of RNA-seq expression profiles with biological replication. The package implements a range of statistical methodology based on the negative binomial distributions, including empirical Bayes estimation, exact tests, generalized linear models and quasi-likelihood tests [Robinson *et al.* 2010](https://academic.oup.com/bioinformatics/article/26/1/139/182458).
+To identify differentailly expressed genes we will be using the R package, [edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html). EdgeR allows differential expression analysis of RNA-seq expression profiles with biological replication. The package implements a range of statistical methodology based on the negative binomial distributions, including empirical Bayes estimation, exact tests, generalized linear models and quasi-likelihood tests [Robinson *et al.* 2010](https://academic.oup.com/bioinformatics/article/26/1/139/182458).
 
 As we saw with our alignment steps there are alternatives to edgeR to identify differential expressed genes. The other most commonly used software is [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html), which provides similar analysis options and performance to that of edgeR. 
 
@@ -33,11 +39,12 @@ To start our analysis we need to first read and format our data. We will require
 ```{r}
 samples = read.table("fastq/samples.txt", sep='\t', header=TRUE)
 samples = samples[samples$Timepoint == '0hr' | samples$Timepoint == '1hr',]
+samples$Timepoint = factor(samples$Timepoint)
 samples = samples[seq(dim(samples)[1],1),]
 head(samples)
 ```
 
-The above code chunk first reads in the samples table, selects only the samples at 0hr OR 1hr and finally reverses the order of the table so that it matches the counts table. ii) We also our table of counts that was produced with the `featureCounts` program:
+The above code chunk first reads in the samples table, selects only the samples at 0hr OR 1hr, re-factors the timepoint data (otherwise it contains metadata on other timepoints) and finally reverses the order of the table so that it matches the counts table. ii) We also our table of counts that was produced with the `featureCounts` program:
 
 ```{r}
 counts = read.table("DE/counts.txt", header=TRUE, sep='\t')
@@ -47,11 +54,12 @@ head(counts)
 Our counts table shows the number of reads that map to each gene in the *C. gattii* genome for each sample. However, our samples names, that can be cross-referenced against the sample table, have text (`_1.fastq.gz.subread.BAM`) appended that makes reading the counts table cumbersome. Let's remove it:
 
 ```{r}
-colnames(counts) <- substr(colnames(counts), 1, 11)
+colnames(counts) = gsub('X.home.ubuntu.resources.workshops.ws4.differential.expression.alignments.', '', colnames(counts))
+colnames(counts) = substr(colnames(counts), 1, 11)
 head(counts)
 ```
 
-Here, we use the substring (`substr`) command on the `colnames` of the counts table to just keep characters 1 - 11 (i.e the SRR ID). Using `head` to look at the first few lines of the counts table shows us that our column names are much more readable and can be easily cross-referenced with the samples table.
+Here, we use the `gsub` command to first remove the path to the BAM files from the filename and then use the substring (`substr`) command on the `colnames` of the counts table to just keep characters 1 - 11 (i.e the SRR ID). Using `head` to look at the first few lines of the counts table shows us that our column names are much more readable and can be easily cross-referenced with the samples table.
 
 ###  Filtering genes with low expression
 
@@ -90,13 +98,21 @@ levels(factor(samples$Condition))
 
 First we use `levels` and `factor` to see how many conditions we have and the order that they appear in the data.
 
-```{r}
+```{r, eval=FALSE}
+pdf('diff_exp_mds.pdf')
+col.cell <- c("purple","orange")[factor(samples$Condition)]
+plotMDS(dge,col=col.cell)
+legend("topleft",fill=c("purple","orange"),legend=levels(factor(samples$Condition)))
+dev.off()
+```
+
+```{r, echo=FALSE}
 col.cell <- c("purple","orange")[factor(samples$Condition)]
 plotMDS(dge,col=col.cell)
 legend("topleft",fill=c("purple","orange"),legend=levels(factor(samples$Condition)))
 ```
 
-We use the levels information to assign colours to the BMDM (purple) and *in vitro* (orange) data. Then we call `plotMDS` to visualise the variation in the data. We can see clearly that the BMDM and *in vitro* data form two distinct clusters. We can also see that there is more variation in the BMDM data as this cluster is more dispersed. We may see this pattern because of issues with data quality (we know that we have few mapping and assigned reads in these data) or because of differences between the *C. gattii* strains in our experiment. It is a good result that we can distinguish between our conditions.
+We use the levels information to assign colours to the BMDM (purple) and *in vitro* (orange) data. Then we call `pdf` and `plotMDS` to visualise the variation in the data and produce a file called `diff_exp_mds.pdf` to store the plot. You won't see the plot while using the R prompt but if you move the file to your own machine using MobaXTerm you should be able to see a figure like the one above. We can see clearly that the BMDM and *in vitro* data form two distinct clusters. We can also see that there is more variation in the BMDM data as this cluster is more dispersed. We may see this pattern because of issues with data quality (we know that we have few mapping and assigned reads in these data) or because of differences between the *C. gattii* strains in our experiment. It is a good result that we can distinguish between our conditions.
 
 ### Normalisation
 
@@ -163,13 +179,19 @@ topTags(lrt.timepoint)
 
 The `topTags` function shows us the top differentially expressed genes between the 0hr and 1hr timepoints (see the Coefficient at the top of the table). Here the `logFC` shows us the fold change between timepoints (with negative values indicating down-regulation in the 1hr timepoint), `logCPM` shows the average expression of the gene over all samples, `LR` is the likelihood ratio, `PValue` is the raw p-value from the likelihhod test and `FDR` is the false discovery rate corrected p-value (the one we actually use to judge significance) corrected by the method of [Benjamini and Hochberg, 1995](https://www.jstor.org/stable/2346101?seq=1).
 
-As a quick check of our results, we can plot a `barplot` of the CPM normalised counts for one of our significantly differentailly expressed genes. We choose gene `CNB3_005342` with a `logFC` of -8.82:
+As a quick check of our results, we can plot a `barplot` of the CPM normalised counts for one of our significantly differentially expressed genes. We choose gene `CNB3_005342` with a `logFC` of -8.82:
 
-```{r}
+```{r, eval=FALSE}
+pdf('diff_exp_barplot.pdf')
+barplot(counts.cpm['CNB3_005342', ], xaxt='n', ann=FALSE)
+dev.off()
+```
+
+```{r, echo=FALSE}
 barplot(counts.cpm['CNB3_005342', ], xaxt='n', ann=FALSE)
 ```
 
-We can see that in samples 1-5 and 11-15 (the 0hr timepoint samples) there are high CPM values indicating high expression and very little expression in samples 6-10 and 16-20 (the 1hr timepoint samples). This confirms our result of significant down-regulation for `CNB3_005342` at 1hr post infection.
+As before the code will produce a PDF of the bar plot (`diff_exp_barplot.pdf`) in the workshop base directory. You can use MobaXTerm to transfer the file to your local machine and view it. We can see that in samples 1-5 and 11-15 (the 0hr timepoint samples) there are high CPM values indicating high expression and very little expression in samples 6-10 and 16-20 (the 1hr timepoint samples). This confirms our result of significant down-regulation for `CNB3_005342` at 1hr post infection.
 
 ### Adjusting for false discovery rate
 

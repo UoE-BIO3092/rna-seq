@@ -9,18 +9,24 @@ To start our analysis we will align raw sequencing reads, provided as fastq file
 
 ## Setup
 
-For this section of the workshop you will need access to several fastq files stored in the `fastq/` directory and a range of alignments stored in the `alignments/` directory. On the virtual machine the full path to the workshop directory is `/home/ubuntu/resources/workshops/ws4-differential-expression/`. Within this directory you will see the `fastq/` and `alignments/` directories, plus other directories that will be used throughout the workshop.
+The base directory for the RNA-Seq workshop on the virtual machine is `/home/ubuntu/resources/workshops/ws4-differential-expression/`. For this section of the workshop you will need access to several fastq files stored in the `fastq/` directory and a range of alignments stored in the `alignments/` directory. Within the base directory you will see the `fastq/` and `alignments/` directories, plus other directories that will be used throughout the workshop. You should be able to see these folders and files using the Graphical SFTP browser in MobaXTerm.
 
-To make these directories and files visible to R (without needing to enter the whole path each time) you can set the working directory using `setwd('/home/ubuntu/resources/workshops/ws4-differential-expression/')`. Or if you are using a R notebook you can use the below code chunk to set the root directory for the analysis. Simply replace my own working directory `'~/Data/BIO3092/'` with the virtual machine working directory `'/home/ubuntu/resources/workshops/ws4-differential-expression/'`. Obviously, if you're using your own machine this path should be set to your own version of the working directory after downloading all the workshop data as described in the [prerequisites page](https://uoe-bio3092.github.io/rna-seq/01_prerequisites.html).
+To make these directories and files visible to R (without needing to enter the whole path each time) you can set the working directory using `
 
-```{r setup}
+```{r, eval=FALSE}
+setwd('/home/ubuntu/resources/workshops/ws4-differential-expression/')
+```
+
+Obviously, if you're using your own machine this path should be set to your own version of the working directory after downloading all the workshop data as described in the [prerequisites page](https://uoe-bio3092.github.io/rna-seq/01_prerequisites.html). 
+
+```{r setup, echo=FALSE}
 require("knitr")
 opts_knit$set(root.dir = "~/Data/BIO3092/")
 ```
 
 ## Software 
 
-For the alignment and counting stage of our analysis we will be using an R package, [Rsubread](https://bioconductor.org/packages/release/bioc/html/Rsubread.html). Rsubread is a package for alignment, quantification and analysis of second and third generation sequencing data. It includes functionality for read mapping, read counting, SNP calling, structural variant detection and gene fusion discovery. The package can be applied to all major sequencing techologies and to both short and long sequence reads.
+For the alignment and counting stage of our analysis we will be using an R package, [Rsubread](https://bioconductor.org/packages/release/bioc/html/Rsubread.html). Rsubread is a package for alignment, quantification and analysis of second and third generation sequencing data. It includes functionality for read mapping, read counting, SNP calling, structural variant detection and gene fusion discovery. The package can be applied to all major sequencing technologies and to both short and long sequence reads.
 
 There are alternatives for aligning reads to reference genomes including [HISAT](https://www.nature.com/articles/nmeth.3317) and [STAR](https://academic.oup.com/bioinformatics/article/29/1/15/272537). However, these are developed for a Linux environment and are usually run on a server so that they can cope with large datasets and parallel tasks. In our case we will be using Rsubread as it is the only aligner that can be run in R and we  are working with comparatively small fungal data. 
 
@@ -36,14 +42,14 @@ ATGCGTCTGCATCGTGCATCGAC...
 
 These files are large, and depending on the genome, can be a few GB in size. Mapping many individual sequencing reads to a large fasta file of sequences would take a long time. Building a reference genome indexes the large genome to improve the performance of an aligner and make the alignment step much quicker.
 
-To build an index we need a fasta file that stores the *C. gattii* genome. You will find some reference sequences for the pathogen in `C.gattii_ref/`. The reference sequence is stored in file `Cryp_gatt_R265.genome.fa` and is an updated, unpublished latest version of the *C.gattii* genome provided by Rhys Farrer. Let's start by loading the Rsubread package and buildiing our reference.
+To build an index we need a fasta file that stores the *C. gattii* genome. You will find some reference sequences for the pathogen in `C.gattii_ref/`. The reference sequence is stored in file `Cryp_gatt_R265.genome.fa` and is an updated, unpublished latest version of the *C.gattii* genome provided by Rhys Farrer. Let's start by loading the Rsubread package and building our reference.
 
 ```{r}
 library(Rsubread)
 buildindex(basename="C.gattii_ref/Cryptococcus_gattii", reference="C.gattii_ref/Cryp_gatt_R265.genome.fa")
 ```
 
-The `buildindex` command will take a minute or two to run and print a range of progress information to the screen. It will also generate a few new files in the `C.gattii_ref/` folder that you can list with the `dir` command. Try:
+The `buildindex` command will take a minute or two to run and print a range of progress information to the screen. **Note** the output may look slightly different using the R prompt but you should still see the same information. It will also generate a few new files in the `C.gattii_ref/` folder that you can list with the `dir` command. Try:
 
 ```{r, eval=False}
 dir(path='C.gattii_ref/')

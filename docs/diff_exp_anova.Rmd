@@ -9,11 +9,17 @@ In the previous section of our workshop we used `edgeR` to identify differential
 
 ## Setup
 
-For this section of the workshop you will need access to the gene counts data that you generated in the previous section of the workshop and stored in the `DE/` directory. On the virtual machine the full path to the workshop directory is `/home/ubuntu/resources/workshops/ws4-differential-expression/`. Within this directory you will see the `DE/` directory, plus other directories that will be used throughout the workshop.
+On the virtual machine the full path to the workshop directory is `/home/ubuntu/resources/workshops/ws4-differential-expression/`. For this section of the workshop you will need access to the gene counts data that you generated in the previous section of the workshop and stored in the `DE/` directory. From the base directory you will see the `DE/` directory, plus other directories that will be used throughout the workshop. You should be able to see these folders and files using the Graphical SFTP browser in MobaXTerm.
 
-To make these directories and files visible to R (without needing to enter the whole path each time) you can set the working directory using `setwd('/home/ubuntu/resources/workshops/ws4-differential-expression/')`. Or if you are using a R notebook you can use the below code chunk to set the root directory for the analysis. Simply replace my own working directory `'~/Data/BIO3092/'` with the virtual machine working directory `'/home/ubuntu/resources/workshops/ws4-differential-expression/'`. Obviously, if you're using your own machine this path should be set to your own version of the working directory after downloading all the workshop data as described in the [prerequisites page](https://uoe-bio3092.github.io/rna-seq/01_prerequisites.html).
+To make these directories and files visible to R (without needing to enter the whole path each time) you can set the working directory using `
 
-```{r setup}
+```{r, eval=FALSE}
+setwd('/home/ubuntu/resources/workshops/ws4-differential-expression/')
+```
+
+Obviously, if you're using your own machine this path should be set to your own version of the working directory after downloading all the workshop data as described in the [prerequisites page](https://uoe-bio3092.github.io/rna-seq/01_prerequisites.html). 
+
+```{r setup, echo=FALSE}
 require("knitr")
 opts_knit$set(root.dir = "~/Data/BIO3092/")
 ```
@@ -25,6 +31,7 @@ To start our analysis we need to first read and format our data. We will require
 ```{r}
 samples = read.table("fastq/samples.txt", sep='\t', header=TRUE)
 samples = samples[samples$Timepoint == '1hr',]
+samples$Sample = factor(samples$Sample)
 head(samples)
 ```
 
@@ -32,8 +39,9 @@ The above code chunk first reads in the samples table and then selects only the 
 
 ```{r}
 counts = read.table("DE/counts.txt", header=TRUE, sep='\t')
+colnames(counts) = gsub('X.home.ubuntu.resources.workshops.ws4.differential.expression.alignments.', '', colnames(counts))
 colnames(counts) <- substr(colnames(counts), 1, 11)
-counts = counts[,samples$Sample]
+counts = counts[,levels(samples$Sample)]
 head(counts)
 ```
 
@@ -68,13 +76,21 @@ You can see that the DGEList object has the slots `$counts` that stores our coun
 
 One important next step is to inspect our data to see whether any samples may be outliers and not suited to the analysis. As before we will use a Multidimensional Scaling (MDS) plot. If the experiment is well controlled and has worked well,  we hope to see  that the greatest sources of variation in the data are the treatments or groups. For example, with our dataset we would hope to see that the strains cluster together:
 
-```{r}
+```{r, eval=FALSE}
+pdf('diff_anova_mds.pdf')
+col.cell <- c("purple","orange","blue","red","green")[factor(samples$Strain)]
+plotMDS(dge,col=col.cell)
+legend("topleft",fill=c("purple","orange","blue","red","green"),legend=levels(factor(samples$Strain)))
+dev.off()
+```
+
+```{r, echo=FALSE}
 col.cell <- c("purple","orange","blue","red","green")[factor(samples$Strain)]
 plotMDS(dge,col=col.cell)
 legend("topleft",fill=c("purple","orange","blue","red","green"),legend=levels(factor(samples$Strain)))
 ```
 
-We use the levels information to assign colours to each of the strains. Then we call `plotMDS` to visualise the variation in the data. We can see clearly that most of our strains do seem to cluster together. We can notice that strains R265 and ENV152 are very similar. Also our replicates of WM276 appear to be quite distinct compared to the other strains. We may see this pattern because of issues with data quality (we know that we have few mapping and assigned reads in these data) or because of differences between the *C. gattii* strains in our experiment. It is a good result that we can distinguish between our strains.
+We use the levels information to assign colours to each of the strains. Then we call `pdf` to create a blank file and produce the plot with `plotMDS` to visualise the variation in the data. As in the previous section you will not see the plot but should see a file `diff_anova_mds.pdf` created that can be downloaded with MobaXTerm for viewing. We can see clearly that most of our strains do seem to cluster together. We can notice that strains R265 and ENV152 are very similar. Also our replicates of WM276 appear to be quite distinct compared to the other strains. We may see this pattern because of issues with data quality (we know that we have few mapping and assigned reads in these data) or because of differences between the *C. gattii* strains in our experiment. It is a good result that we can distinguish between our strains.
 
 ### Normalisation
 
@@ -119,7 +135,7 @@ fit <- glmQLFit(dge, design)
 head(coef(fit))
 ```
 
-The method `coef(fit)` shows all the coefficients of the linear model. We can see that we have an intercept term and each other column, represent a strain.
+The method `coef(fit)` shows all the coefficients of the linear model. We can see that we have an intercept term and each other column, represent a strain. If your samples slot in the `dge` object was ordered differently than mine then this table may appear slightly differently than in this document - don't worry, this will not affect your results.
 
 Next, we can now conduct a likelihood ratio test to identify differentially expressed genes between all the strains:
 
