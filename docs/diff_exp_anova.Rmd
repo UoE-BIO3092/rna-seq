@@ -11,7 +11,7 @@ In the previous section of our workshop we used `edgeR` to identify differential
 
 On the virtual machine the full path to the workshop directory is `/home/ubuntu/resources/workshops/ws4-differential-expression/`. For this section of the workshop you will need access to the gene counts data that you generated in the previous section of the workshop and stored in the `DE/` directory. From the base directory you will see the `DE/` directory, plus other directories that will be used throughout the workshop. You should be able to see these folders and files using the Graphical SFTP browser in MobaXTerm.
 
-To make these directories and files visible to R (without needing to enter the whole path each time) you can set the working directory using `
+To make these directories and files visible to R (without needing to enter the whole path each time) you can set the working directory using
 
 ```{r, eval=FALSE}
 setwd('/home/ubuntu/resources/workshops/ws4-differential-expression/')
@@ -31,7 +31,6 @@ To start our analysis we need to first read and format our data. We will require
 ```{r}
 samples = read.table("fastq/samples.txt", sep='\t', header=TRUE)
 samples = samples[samples$Timepoint == '1hr',]
-samples$Sample = factor(samples$Sample)
 head(samples)
 ```
 
@@ -41,7 +40,7 @@ The above code chunk first reads in the samples table and then selects only the 
 counts = read.table("DE/counts.txt", header=TRUE, sep='\t')
 colnames(counts) = gsub('X.home.ubuntu.resources.workshops.ws4.differential.expression.alignments.', '', colnames(counts))
 colnames(counts) <- substr(colnames(counts), 1, 11)
-counts = counts[,levels(samples$Sample)]
+counts = counts[,samples$Sample]
 head(counts)
 ```
 
