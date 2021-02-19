@@ -13,7 +13,7 @@ On the virtual machine the full path to the workshop directory is `/home/ubuntu/
 
 To make these directories and files visible to R (without needing to enter the whole path each time) you can set the working directory using
 
-```{r, eval=FALSE}
+```{r eval=FALSE, warning=FALSE}
 setwd('/home/ubuntu/resources/workshops/ws4-differential-expression/')
 ```
 
@@ -31,16 +31,16 @@ To start our analysis we need to first read and format our data. We will require
 ```{r}
 samples = read.table("fastq/samples.txt", sep='\t', header=TRUE)
 samples = samples[samples$Timepoint == '1hr',]
-head(samples)
+samples
 ```
 
 The above code chunk first reads in the samples table and then selects only the samples at 1hr. ii) We also need our table of counts that was produced with the `featureCounts` program:
 
-```{r}
+```{r warning=FALSE}
 counts = read.table("DE/counts.txt", header=TRUE, sep='\t')
 colnames(counts) = gsub('X.home.ubuntu.resources.workshops.ws4.differential.expression.alignments.', '', colnames(counts))
 colnames(counts) <- substr(colnames(counts), 1, 11)
-counts = counts[,samples$Sample]
+counts = counts[,as.vector(samples$Sample)]
 head(counts)
 ```
 

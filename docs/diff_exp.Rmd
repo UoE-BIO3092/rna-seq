@@ -77,7 +77,7 @@ counts.keep <- counts[keep,]
 dim(counts.keep)
 ```
 
-The above code chunk converts our counts to CPM and stores the result in `counts.cpm`. We then create a logical table that stores TRUE values if the count for a gene and sample is above our CPM cutoff of 10.  If the count is any smaller, it is considered to be very low, indicating that the associated gene is not expressed, or we can not accurately detect it in that sample. Next, we use `rowSums` to count the number of samples that show a CPM greater than our cutoff, a requirement for expression in two or more libraries is used as each group contains two replicates. This ensures that a gene will be retained if it is only expressed in one group. Finally, we subset our counts table to create `counts.keep` that now stores our filtered counts data. Using `dim` we can see that we now have 5,897 genes in our dataset. 
+The above code chunk converts our counts to CPM and stores the result in `counts.cpm`. We then create a logical table that stores TRUE values if the count for a gene and sample is above our CPM cutoff of 10.  If the count is any smaller, it is considered to be very low, indicating that the associated gene is not expressed, or we can not accurately detect it in that sample. Next, we use `rowSums` to count the number of samples that show a CPM greater than our cutoff, a requirement for expression in two or more libraries is used as each group contains two replicates. This ensures that a gene will be retained if it is only expressed in one group. Finally, we subset our counts table to create `counts.keep` that now stores our filtered counts data. Using `dim` we can see that we now have 5,697 genes in our dataset. 
 
 ### Create a DGEList object
 
@@ -183,15 +183,15 @@ As a quick check of our results, we can plot a `barplot` of the CPM normalised c
 
 ```{r, eval=FALSE}
 pdf('diff_exp_barplot.pdf')
-barplot(counts.cpm['CNB3_005342', ], xaxt='n', ann=FALSE)
+barplot(counts.cpm['CNB3_005342', ], xaxt='n', ann=FALSE, xlab='Samples')
 dev.off()
 ```
 
 ```{r, echo=FALSE}
-barplot(counts.cpm['CNB3_005342', ], xaxt='n', ann=FALSE)
+barplot(counts.cpm['CNB3_005342', ], xaxt='n', ann=FALSE, xlab='Samples')
 ```
 
-As before the code will produce a PDF of the bar plot (`diff_exp_barplot.pdf`) in the workshop base directory. You can use MobaXTerm to transfer the file to your local machine and view it. We can see that in samples 1-5 and 11-15 (the 0hr timepoint samples) there are high CPM values indicating high expression and very little expression in samples 6-10 and 16-20 (the 1hr timepoint samples). This confirms our result of significant down-regulation for `CNB3_005342` at 1hr post infection.
+As before the code will produce a PDF of the bar plot (`diff_exp_barplot.pdf`) in the workshop base directory. You can use MobaXTerm to transfer the file to your local machine and view it. We can see that in samples 1-5 (columns 1-5 on the x axis) and 11-15 (columns 11-15 on the x axis), the 0hr timepoint samples, there are high CPM values indicating high expression and very little expression in samples 6-10 and 16-20 (the 1hr timepoint samples). This confirms our result of significant down-regulation for `CNB3_005342` at 1hr post infection.
 
 ### Adjusting for false discovery rate
 
