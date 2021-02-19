@@ -134,7 +134,7 @@ fit <- glmQLFit(dge, design)
 head(coef(fit))
 ```
 
-The method `coef(fit)` shows all the coefficients of the linear model. We can see that we have an intercept term and each other column, represent a strain. If your samples slot in the `dge` object was ordered differently than mine then this table may appear slightly differently than in this document - don't worry, this will not affect your results.
+The method `coef(fit)` shows all the coefficients of the linear model. We can see that we have an intercept term and each other column, represent a strain.
 
 Next, we can now conduct a likelihood ratio test to identify differentially expressed genes between all the strains:
 
