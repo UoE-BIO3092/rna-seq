@@ -13,7 +13,7 @@ There are many steps involved in analysing an RNA-Seq experiment. We have alread
 
 On the virtual machine the full path to the workshop directory is `/home/ubuntu/resources/workshops/ws4-differential-expression/`. Within this directory you will see the `DE/` directory, plus other directories that will be used throughout the workshop. For this section of the workshop you will need access to the gene counts data that you generated in the previous section of the workshop and stored in the `DE/` directory. You should be able to see these folders and files using the Graphical SFTP browser in MobaXTerm.
 
-To make these directories and files visible to R (without needing to enter the whole path each time) you can set the working directory using `
+To make these directories and files visible to R (without needing to enter the whole path each time) you can set the working directory using
 
 ```{r, eval=FALSE}
 setwd('/home/ubuntu/resources/workshops/ws4-differential-expression/')
